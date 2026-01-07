@@ -1,3 +1,6 @@
 [submodule "TMMKG"]
 	path = TMMKG
 	url = https://github.com/JiHui11/TMMKG.git
+[submodule "trustgraph"]
+	path = trustgraph
+	url = https://github.com/trustgraph-ai/trustgraph.git
