@@ -4,3 +4,6 @@
 [submodule "trustgraph"]
 	path = trustgraph
 	url = https://github.com/trustgraph-ai/trustgraph.git
+[submodule "ChatGPT_for_IE"]
+	path = ChatGPT_for_IE
+	url = https://github.com/pkuserc/ChatGPT_for_IE.git
