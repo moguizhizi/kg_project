@@ -7,3 +7,6 @@
 [submodule "ChatGPT_for_IE"]
 	path = ChatGPT_for_IE
 	url = https://github.com/pkuserc/ChatGPT_for_IE.git
+[submodule "Wikontic"]
+	path = Wikontic
+	url = https://github.com/screemix/Wikontic.git
