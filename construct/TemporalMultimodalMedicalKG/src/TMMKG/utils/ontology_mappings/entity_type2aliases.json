@@ -1,0 +1,217 @@
+{
+    "AU_Q0000": [
+        "对象",
+        "Entity"
+    ],
+    "AU_Q0001": [
+        "医疗机构",
+        "医疗单位",
+        "Hospital"
+    ],
+    "AU_Q0002": [
+        "临床科室",
+        "部门",
+        "Department",
+        "Clinical Department"
+    ],
+    "AU_Q0003": [
+        "个体",
+        "人员",
+        "Person"
+    ],
+    "AU_Q0004": [
+        "患者",
+        "就诊者",
+        "Patient"
+    ],
+    "AU_Q0005": [
+        "医师",
+        "临床医生",
+        "Doctor",
+        "Physician"
+    ],
+    "AU_Q0006": [
+        "治疗师",
+        "康复训练师",
+        "Trainer",
+        "Therapist"
+    ],
+    "AU_Q0007": [
+        "岗位",
+        "职务",
+        "Occupation",
+        "Profession"
+    ],
+    "AU_Q0008": [
+        "就医",
+        "诊疗过程",
+        "Visit",
+        "Clinical Encounter"
+    ],
+    "AU_Q0009": [
+        "医学检查",
+        "检查过程",
+        "Examination",
+        "Diagnostic Test"
+    ],
+    "AU_Q0010": [
+        "诊疗方案",
+        "治疗计划",
+        "Treatment Plan"
+    ],
+    "AU_Q0011": [
+        "治疗步骤",
+        "治疗项目",
+        "Treatment Task"
+    ],
+    "AU_Q0012": [
+        "执行记录",
+        "治疗执行记录",
+        "Task Execution",
+        "Task Instance"
+    ],
+    "AU_Q0013": [
+        "病症",
+        "疾患",
+        "Disease",
+        "Disorder"
+    ],
+    "AU_Q0014": [
+        "药品",
+        "用药",
+        "Drug",
+        "Medication"
+    ],
+    "AU_Q0015": [
+        "治疗方法",
+        "治疗手段",
+        "Therapy"
+    ],
+    "AU_Q0016": [
+        "医学操作",
+        "临床操作",
+        "Medical Procedure"
+    ],
+    "AU_Q0017": [
+        "临床表现",
+        "医学发现",
+        "Clinical Finding"
+    ],
+    "AU_Q0018": [
+        "影像资料",
+        "影像检查",
+        "Medical Imaging"
+    ],
+    "AU_Q0019": [
+        "检查报告",
+        "医学报告",
+        "Medical Report"
+    ],
+    "AU_Q0020": [
+        "位置信息",
+        "联系地址",
+        "Address"
+    ],
+    "AU_Q0021": [
+        "身份证件",
+        "身份凭证",
+        "Identification Document"
+    ],
+    "AU_Q0022": [
+        "证件号",
+        "身份号码",
+        "ID Number"
+    ],
+    "AU_Q0023": [
+        "游戏化训练任务",
+        "互动治疗任务",
+        "Gamified Therapy Task"
+    ],
+    "AU_Q0024": [
+        "量表评估",
+        "问卷评估任务",
+        "Questionnaire Assessment"
+    ],
+    "AU_Q0025": [
+        "运动训练任务",
+        "康复训练任务",
+        "Exercise Training Task"
+    ],
+    "AU_Q0026": [
+        "字符串",
+        "文本值",
+        "字面量",
+        "Literal",
+        "Text value"
+    ],
+    "AU_Q0027": [
+        "条目",
+        "概念实体",
+        "Entity",
+        "Concept"
+    ],
+    "AU_Q0028": [
+        "时间点",
+        "指定时间",
+        "时间标注",
+        "Time point",
+        "Temporal point"
+    ],
+    "AU_Q0029": [
+        "性别类型",
+        "生理性别",
+        "Gender",
+        "Sex",
+        "Gender type"
+    ],
+    "AU_Q0030": [
+        "国家地区",
+        "国别",
+        "Country",
+        "Nation",
+        "Country or region"
+    ],
+    "AU_Q0031": [
+        "省级行政区",
+        "省级区域",
+        "Province",
+        "State",
+        "Provincial region"
+    ],
+    "AU_Q0032": [
+        "证件类型",
+        "身份证件类型",
+        "证件类别",
+        "ID type",
+        "Identification type",
+        "Document type"
+    ],
+    "AU_Q0033": [
+        "医院类型",
+        "医疗机构类型",
+        "医院类别",
+        "Hospital type",
+        "Hospital category",
+        "Healthcare institution type"
+    ],
+    "AU_Q0034": [
+        "医院等级",
+        "医疗机构级别",
+        "Hospital level",
+        "Hospital grade",
+        "Institution level"
+    ],
+    "AU_Q0035": [
+        "检查项目类型",
+        "检测类型",
+        "Examination type",
+        "Test type",
+        "Diagnostic test type"
+    ],
+    "AU_Q0036": [
+        "number",
+        "amount",
+        "qty",
+        "quantulum"
+    ]
+}
