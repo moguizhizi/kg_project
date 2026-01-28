@@ -370,7 +370,7 @@ def create_indexes(db):
 
 def create_wikidata_ontology_database(
     mongo_uri: str = "mongodb://localhost:27017/?directConnection=true",
-    database: str = "TMMKG_ontology",
+    database: str = "tmmkg_ontology",
     mappings_dir: str = "",
     entity_types_collection: str = "entity_types",
     entity_type_aliases_collection: str = "entity_type_aliases",
