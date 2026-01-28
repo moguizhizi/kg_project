@@ -288,45 +288,72 @@ def populate_properties(
 
 
 def populate_property_aliases(
-    PROP_2_LABEL, PROP_2_ALIASES, db, collection_name="property_aliases"
+    PROP_2_LABEL,
+    PROP_2_ALIASES,
+    qdrant_client,
+    collection_name: str = "property_aliases",
 ):
-    logger.info(f"Starting to populate {collection_name} collection")
-    relation_alias_id_pairs = []
-    id_count = 0
+    logger.info(f"Starting to populate Qdrant collection: {collection_name}")
 
-    for r, aliases in tqdm(PROP_2_ALIASES.items()):
-        alias_embedding = get_embedding(PROP_2_LABEL[r])
-        relation_alias_id_pairs.append(
-            {
-                "_id": id_count,
-                "relation_id": r,
-                "alias_label": PROP_2_LABEL[r],
-                "alias_text_embedding": alias_embedding,
-            }
-        )
-        id_count += 1
+    qdrant = QdrantVectorStore(
+        collection_name=collection_name,
+        vector_size=embed_dim,
+        client=qdrant_client,
+    )
 
-        for alias in aliases:
-            alias_embedding = get_embedding(alias)
-            relation_alias_id_pairs.append(
-                {
-                    "_id": id_count,
-                    "relation_id": r,
-                    "alias_label": alias,
-                    "alias_text_embedding": alias_embedding,
-                }
+    points = []
+    point_id = 0
+
+    for prop, aliases in tqdm(PROP_2_ALIASES.items()):
+        # 主 label（canonical）
+        label = PROP_2_LABEL[prop]
+        embedding = get_embedding(label)
+
+        points.append(
+            PointStruct(
+                id=point_id,
+                vector=embedding,
+                payload={
+                    "property_id": prop,
+                    "alias_label": label,
+                    "is_canonical": True,
+                },
             )
-            id_count += 1
-    try:
-        records = [
-            PropertyAlias(**record).model_dump() for record in relation_alias_id_pairs
-        ]
-    except ValidationError as e:
-        logger.error(f"Validation error while populating {collection_name}: {e}")
+        )
+        point_id += 1
 
-    collection = db.get_collection(collection_name)
-    collection.insert_many(records)
-    logger.info(f"Successfully populated {collection_name} with {len(records)} records")
+        # aliases
+        for alias in aliases:
+            embedding = get_embedding(alias)
+            points.append(
+                PointStruct(
+                    id=point_id,
+                    vector=embedding,
+                    payload={
+                        "property_id": prop,
+                        "alias_label": alias,
+                        "is_canonical": False,
+                    },
+                )
+            )
+            point_id += 1
+
+    # 拆 PointStruct → ids / vectors / payloads
+    ids = [p.id for p in points]
+    vectors = [p.vector for p in points]
+    payloads = [p.payload for p in points]
+
+    # 一次性 upsert（幂等）
+    qdrant.upsert(
+        ids=ids,
+        vectors=vectors,
+        payloads=payloads,
+    )
+
+    logger.info(
+        f"Successfully populated Qdrant collection "
+        f"{collection_name} with {len(points)} points"
+    )
 
 
 def create_search_index_for_entity_types(
@@ -516,8 +543,6 @@ def create_wikidata_ontology_database(
         collection_name=entity_type_aliases_collection,
     )
 
-    exit(0)
-
     populate_properties(
         PROP_2_LABEL, PROP_2_CONSTRAINT, db, collection_name=properties_collection
     )
@@ -525,24 +550,10 @@ def create_wikidata_ontology_database(
     populate_property_aliases(
         PROP_2_LABEL,
         PROP_2_ALIASES,
-        db,
+        qdrant_client,
         collection_name=property_aliases_collection,
     )
 
-    # Create search indexes
-    create_search_index_for_entity_types(
-        db,
-        collection_name=entity_type_aliases_collection,
-        index_name=entity_types_index,
-    )
-    create_search_index_for_properties(
-        db,
-        collection_name=property_aliases_collection,
-        index_name=property_aliases_index,
-    )
-
-    # Create indexes
-    create_indexes(db)
     logger.info("Database population process completed")
 
     return db
