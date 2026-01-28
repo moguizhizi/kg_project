@@ -14,6 +14,17 @@ import os
 from pathlib import Path
 import torch
 from dotenv import load_dotenv, find_dotenv
+from qdrant_client import QdrantClient
+
+from TMMKG.services.llm_path_resolver import build_llm_path
+from TMMKG.services.model_registry import get_embedding_dim
+from TMMKG.vectorstores.qdrant import QdrantVectorStore
+
+from qdrant_client.http.models import PointStruct
+from tqdm import tqdm
+
+BASE_DIR = Path(__file__).resolve().parent
+MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
 
 _ = load_dotenv(find_dotenv())
 # Configure logging
@@ -26,18 +37,25 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 
 # Check for local model first, then fall back to remote
 model_name = "facebook/contriever"
-local_model_path = os.getenv("HF_MODEL_PATH")
+local_model_path = build_llm_path(model_name, os.getenv("LLM_ROOT"))
 
 if os.path.exists(local_model_path) and os.path.isdir(local_model_path):
     model_path = local_model_path
 else:
     model_path = model_name
 
-model_path = model_name
+embed_dim = get_embedding_dim(model_name)
 
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModel.from_pretrained(model_path, use_safetensors=True).to(device)
-model = AutoModel.from_pretrained(model_path).to(device)
+tokenizer = AutoTokenizer.from_pretrained(
+    model_path, local_files_only=True, trust_remote_code=False
+)
+
+model = AutoModel.from_pretrained(
+    model_path,
+    local_files_only=True,
+    trust_remote_code=False,
+    use_safetensors=False,
+).to(device)
 
 
 class EntityType(BaseModel):
@@ -94,6 +112,12 @@ def get_embedding(text):
 def get_mongo_client(mongo_uri):
     client = MongoClient(mongo_uri)
     logger.info("Connection to MongoDB successful")
+    return client
+
+
+def get_qdrant_client(url: str = "http://localhost:6333") -> QdrantClient:
+    client = QdrantClient(url=url)
+    logger.info(f"Connected to Qdrant at {url}")
     return client
 
 
@@ -168,45 +192,64 @@ def populate_entity_types(
 
 
 def populate_entity_type_aliases(
-    ENTITY_2_LABEL, ENTITY_2_ALIASES, db, collection_name="entity_type_aliases"
+    ENTITY_TYPE_2_LABEL,
+    ENTITY_TYPE_2_ALIASES,
+    qdrant_client,
+    collection_name: str = "entity_type_aliases",
 ):
-    logger.info(f"Starting to populate {collection_name} collection")
-    entity_types_list = []
-    id_count = 0
+    logger.info(f"Starting to populate Qdrant collection: {collection_name}")
 
-    for e, aliases in tqdm(ENTITY_2_ALIASES.items()):
-        alias_embedding = get_embedding(ENTITY_2_LABEL[e])
-        entity_types_list.append(
-            {
-                "_id": id_count,
-                "entity_type_id": e,
-                "alias_label": ENTITY_2_LABEL[e],
-                "alias_text_embedding": alias_embedding,
-            }
-        )
-        id_count += 1
+    qdrant = QdrantVectorStore(
+        collection_name=collection_name, vector_size=embed_dim, client=qdrant_client
+    )
 
-        for alias in aliases:
-            alias_embedding = get_embedding(alias)
-            entity_types_list.append(
-                {
-                    "_id": id_count,
-                    "entity_type_id": e,
-                    "alias_label": alias,
-                    "alias_text_embedding": alias_embedding,
-                }
+    points = []
+    point_id = 0
+
+    for entity_type, aliases in tqdm(ENTITY_TYPE_2_ALIASES.items()):
+        # 主 label
+        label = ENTITY_TYPE_2_LABEL[entity_type]
+        embedding = get_embedding(label)
+
+        points.append(
+            PointStruct(
+                id=point_id,
+                vector=embedding,
+                payload={
+                    "entity_type_id": entity_type,
+                    "alias_label": label,
+                    "is_canonical": True,
+                },
             )
-            id_count += 1
-    try:
-        records = [
-            EntityTypeAlias(**record).model_dump() for record in entity_types_list
-        ]
-    except ValidationError as e:
-        logger.error(f"Validation error while populating {collection_name}: {e}")
+        )
+        point_id += 1
 
-    collection = db.get_collection(collection_name)
-    collection.insert_many(records)
-    logger.info(f"Successfully populated {collection_name} with {len(records)} records")
+        # aliases
+        for alias in aliases:
+            embedding = get_embedding(alias)
+            points.append(
+                PointStruct(
+                    id=point_id,
+                    vector=embedding,
+                    payload={
+                        "entity_type_id": entity_type,
+                        "alias_label": alias,
+                        "is_canonical": False,
+                    },
+                )
+            )
+            point_id += 1
+
+    # 一次性 upsert
+    qdrant.upsert(
+        collection_name=collection_name,
+        points=points,
+    )
+
+    logger.info(
+        f"Successfully populated Qdrant collection "
+        f"{collection_name} with {len(points)} points"
+    )
 
 
 def populate_properties(
@@ -379,7 +422,7 @@ def create_indexes(db):
 def create_wikidata_ontology_database(
     mongo_uri: str = "mongodb://localhost:27017/?directConnection=true",
     database: str = "tmmkg_ontology",
-    mappings_dir: str = "",
+    qdrant_uri: str = "http://localhost:6333",
     entity_types_collection: str = "entity_types",
     entity_type_aliases_collection: str = "entity_type_aliases",
     properties_collection: str = "properties",
@@ -407,42 +450,32 @@ def create_wikidata_ontology_database(
         Database object
     """
 
-    # Default mappings directory
-    if mappings_dir is None:
-        # Try to find the mappings directory relative to this file
-        current_file = Path(__file__).parent
-        mappings_dir = str(current_file / "utils" / "ontology_mappings" / "")
-        if not os.path.exists(mappings_dir):
-            # Fallback to relative path
-            mappings_dir = "utils/ontology_mappings/"
-
     logger.info("Starting database population process")
     logger.info(f"Using database: {database}")
-    logger.info(f"Loading mapping files from: {mappings_dir}")
 
     # Load mapping files
-    with open(os.path.join(mappings_dir, "subj_constraint2prop.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "subj_constraint2prop.json"), "r") as f:
         subj2prop_constraints = json.load(f)
 
-    with open(os.path.join(mappings_dir, "obj_constraint2prop.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "obj_constraint2prop.json"), "r") as f:
         obj2prop_constraints = json.load(f)
 
-    with open(os.path.join(mappings_dir, "entity_type2label.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "entity_type2label.json"), "r") as f:
         ENTITY_TYPE_2_LABEL = json.load(f)
 
-    with open(os.path.join(mappings_dir, "entity_type2hierarchy.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "entity_type2hierarchy.json"), "r") as f:
         ENTITY_TYPE_2_HIERARCHY = json.load(f)
 
-    with open(os.path.join(mappings_dir, "entity_type2aliases.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "entity_type2aliases.json"), "r") as f:
         ENTITY_TYPE_2_ALIASES = json.load(f)
 
-    with open(os.path.join(mappings_dir, "prop2constraints.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "prop2constraints.json"), "r") as f:
         PROP_2_CONSTRAINT = json.load(f)
 
-    with open(os.path.join(mappings_dir, "prop2label.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "prop2label.json"), "r") as f:
         PROP_2_LABEL = json.load(f)
 
-    with open(os.path.join(mappings_dir, "prop2aliases.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "prop2aliases.json"), "r") as f:
         PROP_2_ALIASES = json.load(f)
 
     logger.info("Successfully loaded all mapping files")
@@ -450,6 +483,9 @@ def create_wikidata_ontology_database(
     # Connect to MongoDB
     mongo_client = get_mongo_client(mongo_uri)
     db = mongo_client.get_database(database)
+
+    # Connect to qdrant
+    qdrant_client = get_qdrant_client(qdrant_uri)
 
     # Drop all existing collections
     if drop_collections:
@@ -472,9 +508,11 @@ def create_wikidata_ontology_database(
     populate_entity_type_aliases(
         ENTITY_TYPE_2_LABEL,
         ENTITY_TYPE_2_ALIASES,
-        db,
+        qdrant_client,
         collection_name=entity_type_aliases_collection,
     )
+
+    exit(0)
 
     populate_properties(
         PROP_2_LABEL, PROP_2_CONSTRAINT, db, collection_name=properties_collection
@@ -529,6 +567,12 @@ if __name__ == "__main__":
         default="tmmkg_ontology",
         help="MongoDB database name",
     )
+    parser.add_argument(
+        "--qdrant_uri",
+        type=str,
+        default="http://localhost:6333",
+        help="Qdrant connection URI",
+    )
 
     # Collection names
     parser.add_argument(
@@ -574,7 +618,7 @@ if __name__ == "__main__":
     create_wikidata_ontology_database(
         mongo_uri=args.mongo_uri,
         database=args.database,
-        mappings_dir=args.mappings_dir,
+        qdrant_uri=args.qdrant_uri,
         entity_types_collection=args.entity_types_collection,
         entity_type_aliases_collection=args.entity_type_aliases_collection,
         properties_collection=args.properties_collection,
