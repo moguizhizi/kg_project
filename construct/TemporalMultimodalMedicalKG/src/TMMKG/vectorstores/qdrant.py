@@ -11,13 +11,12 @@ class QdrantVectorStore(VectorStore):
         collection_name: str,
         vector_size: int,
         distance: Distance = Distance.COSINE,
-        host="localhost",
-        port=6333,
+        client: QdrantClient = None,
     ):
         self.collection_name = collection_name
         self.vector_size = vector_size
         self.distance = distance
-        self.client = QdrantClient(host=host, port=port)
+        self.client = client
 
         self._ensure_collection()
 
