@@ -240,10 +240,14 @@ def populate_entity_type_aliases(
             )
             point_id += 1
 
-    # 一次性 upsert
+    ids = [p.id for p in points]
+    vectors = [p.vector for p in points]
+    payloads = [p.payload for p in points]
+
     qdrant.upsert(
-        collection_name=collection_name,
-        points=points,
+        ids=ids,
+        vectors=vectors,
+        payloads=payloads,
     )
 
     logger.info(
