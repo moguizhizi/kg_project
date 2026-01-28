@@ -191,6 +191,49 @@ def populate_entity_types(
     logger.info(f"Successfully populated {collection_name} with {len(records)} records")
 
 
+def populate_enum_entity_type(
+    ENUM_ENTITY_TYPE_VALUES,
+    ENTITY_TYPE_2_LABEL,
+    db,
+    collection_name: str = "enum_entity_type",
+):
+    logger.info(f"Starting to populate {collection_name} collection")
+
+    records = []
+
+    for idx, (entity_type_id, enum_values) in enumerate(
+        ENUM_ENTITY_TYPE_VALUES.items()
+    ):
+        label = ENTITY_TYPE_2_LABEL.get(entity_type_id)
+
+        if label is None:
+            logger.warning(f"Missing label for enum entity type: {entity_type_id}")
+            continue
+
+        records.append(
+            {
+                "_id": idx,
+                "entity_type_id": entity_type_id,
+                "label": label,
+                "enum_values": enum_values,
+            }
+        )
+
+    if not records:
+        logger.warning(f"No enum entity types to insert into {collection_name}")
+        return
+
+    collection = db.get_collection(collection_name)
+
+    try:
+        collection.insert_many(records, ordered=False)
+    except Exception as e:
+        logger.error(f"Failed to populate {collection_name}: {e}")
+        raise
+
+    logger.info(f"Successfully populated {collection_name} with {len(records)} records")
+
+
 def populate_entity_type_aliases(
     ENTITY_TYPE_2_LABEL,
     ENTITY_TYPE_2_ALIASES,
@@ -456,10 +499,9 @@ def create_wikidata_ontology_database(
     qdrant_uri: str = "http://localhost:6333",
     entity_types_collection: str = "entity_types",
     entity_type_aliases_collection: str = "entity_type_aliases",
+    enum_entity_type_collection: str = "enum_entity_type",
     properties_collection: str = "properties",
     property_aliases_collection: str = "property_aliases",
-    entity_types_index: str = "entity_type_aliases",
-    property_aliases_index: str = "property_aliases",
     drop_collections: bool = True,
 ):
     """
@@ -499,6 +541,9 @@ def create_wikidata_ontology_database(
 
     with open(os.path.join(MAPPINGS_DIR, "entity_type2aliases.json"), "r") as f:
         ENTITY_TYPE_2_ALIASES = json.load(f)
+
+    with open(os.path.join(MAPPINGS_DIR, "enum_entity_type.json"), "r") as f:
+        ENUM_ENTITY_TYPE_VALUES = json.load(f)
 
     with open(os.path.join(MAPPINGS_DIR, "prop2constraints.json"), "r") as f:
         PROP_2_CONSTRAINT = json.load(f)
@@ -541,6 +586,13 @@ def create_wikidata_ontology_database(
         ENTITY_TYPE_2_ALIASES,
         qdrant_client,
         collection_name=entity_type_aliases_collection,
+    )
+
+    populate_enum_entity_type(
+        ENUM_ENTITY_TYPE_VALUES,
+        ENTITY_TYPE_2_LABEL,
+        db,
+        collection_name=enum_entity_type_collection,
     )
 
     populate_properties(
@@ -597,6 +649,12 @@ if __name__ == "__main__":
         help="Collection name for entity types",
     )
     parser.add_argument(
+        "--enum_entity_type_collection",
+        type=str,
+        default="enum_entity_type",
+        help="Collection name for enum entity type definitions (enum values and constraints)",
+    )
+    parser.add_argument(
         "--entity_type_aliases_collection",
         type=str,
         default="entity_type_aliases",
@@ -636,8 +694,7 @@ if __name__ == "__main__":
         qdrant_uri=args.qdrant_uri,
         entity_types_collection=args.entity_types_collection,
         entity_type_aliases_collection=args.entity_type_aliases_collection,
+        enum_entity_type_collection=args.enum_entity_type_collection,
         properties_collection=args.properties_collection,
         property_aliases_collection=args.property_aliases_collection,
-        entity_types_index=args.entity_types_index,
-        property_aliases_index=args.property_aliases_index,
     )
