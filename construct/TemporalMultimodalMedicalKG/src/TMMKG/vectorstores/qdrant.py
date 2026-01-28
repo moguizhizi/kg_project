@@ -45,7 +45,7 @@ class QdrantVectorStore(VectorStore):
             limit=top_k,
             query_filter=filter,
         )
-    
+
     def _ensure_collection(self):
         if not self.exists():
             self.client.create_collection(
@@ -55,4 +55,3 @@ class QdrantVectorStore(VectorStore):
                     distance=self.distance,
                 ),
             )
-
