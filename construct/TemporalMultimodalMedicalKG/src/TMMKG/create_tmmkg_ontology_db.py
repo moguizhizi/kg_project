@@ -22,7 +22,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+device = torch.device(
+    "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 # Check for local model first, then fall back to remote
 model_name = "facebook/contriever"
@@ -73,15 +74,18 @@ class PropertyAlias(BaseModel):
 
 def get_embedding(text):
     def mean_pooling(token_embeddings, mask):
-        token_embeddings = token_embeddings.masked_fill(~mask[..., None].bool(), 0.0)
-        sentence_embeddings = token_embeddings.sum(dim=1) / mask.sum(dim=1)[..., None]
+        token_embeddings = token_embeddings.masked_fill(
+            ~mask[..., None].bool(), 0.0)
+        sentence_embeddings = token_embeddings.sum(
+            dim=1) / mask.sum(dim=1)[..., None]
         return sentence_embeddings
 
     if not text or not isinstance(text, str):
         return None
 
     try:
-        inputs = tokenizer([text], padding=True, truncation=True, return_tensors="pt")
+        inputs = tokenizer([text], padding=True,
+                           truncation=True, return_tensors="pt")
         outputs = model(**inputs.to("cuda"))
         embeddings = mean_pooling(outputs[0], inputs["attention_mask"])
         return embeddings.detach().cpu().tolist()[0]
@@ -113,10 +117,12 @@ def populate_entity_types(
         parents = ENTITY_TYPE_2_HIERARCHY[entity_type]
 
         valid_subject_property_ids = (
-            SUBJ_2_PROP_CONSTRAINTS[entity_type] if entity_type in SUBJ_2_PROP_CONSTRAINTS else []
+            SUBJ_2_PROP_CONSTRAINTS[entity_type] if entity_type in SUBJ_2_PROP_CONSTRAINTS else [
+            ]
         )
         valid_object_property_ids = (
-            OBJ_2_PROP_CONSTRAINTS[entity_type] if entity_type in OBJ_2_PROP_CONSTRAINTS else []
+            OBJ_2_PROP_CONSTRAINTS[entity_type] if entity_type in OBJ_2_PROP_CONSTRAINTS else [
+            ]
         )
 
         entity_metadata_list.append(
@@ -131,12 +137,14 @@ def populate_entity_types(
         )
 
     valid_subject_property_ids = (
-            SUBJ_2_PROP_CONSTRAINTS["<ANY SUBJECT>"] if "<ANY SUBJECT>" in SUBJ_2_PROP_CONSTRAINTS else []
-        )
+        SUBJ_2_PROP_CONSTRAINTS["<ANY SUBJECT>"] if "<ANY SUBJECT>" in SUBJ_2_PROP_CONSTRAINTS else [
+        ]
+    )
 
     valid_object_property_ids = (
-            OBJ_2_PROP_CONSTRAINTS["<ANY OBJECT>"] if "<ANY SUBJECT>" in OBJ_2_PROP_CONSTRAINTS else []
-        )
+        OBJ_2_PROP_CONSTRAINTS["<ANY OBJECT>"] if "<ANY SUBJECT>" in OBJ_2_PROP_CONSTRAINTS else [
+        ]
+    )
 
     entity_metadata_list.append(
         {
@@ -150,13 +158,16 @@ def populate_entity_types(
     )
 
     try:
-        records = [EntityType(**record).model_dump() for record in entity_metadata_list]
+        records = [EntityType(**record).model_dump()
+                   for record in entity_metadata_list]
     except ValidationError as e:
-        logger.error(f"Validation error while populating {collection_name}: {e}")
+        logger.error(
+            f"Validation error while populating {collection_name}: {e}")
 
     collection = db.get_collection(collection_name)
     collection.insert_many(records)
-    logger.info(f"Successfully populated {collection_name} with {len(records)} records")
+    logger.info(
+        f"Successfully populated {collection_name} with {len(records)} records")
 
 
 def populate_entity_type_aliases(
@@ -194,11 +205,13 @@ def populate_entity_type_aliases(
             EntityTypeAlias(**record).model_dump() for record in entity_types_list
         ]
     except ValidationError as e:
-        logger.error(f"Validation error while populating {collection_name}: {e}")
+        logger.error(
+            f"Validation error while populating {collection_name}: {e}")
 
     collection = db.get_collection(collection_name)
     collection.insert_many(records)
-    logger.info(f"Successfully populated {collection_name} with {len(records)} records")
+    logger.info(
+        f"Successfully populated {collection_name} with {len(records)} records")
 
 
 def populate_properties(
@@ -225,11 +238,13 @@ def populate_properties(
     try:
         records = [Property(**record).model_dump() for record in property_list]
     except ValidationError as e:
-        logger.error(f"Validation error while populating {collection_name}: {e}")
+        logger.error(
+            f"Validation error while populating {collection_name}: {e}")
 
     collection = db.get_collection(collection_name)
     collection.insert_many(records)
-    logger.info(f"Successfully populated {collection_name} with {len(records)} records")
+    logger.info(
+        f"Successfully populated {collection_name} with {len(records)} records")
 
 
 def populate_property_aliases(
@@ -267,11 +282,13 @@ def populate_property_aliases(
             PropertyAlias(**record).model_dump() for record in relation_alias_id_pairs
         ]
     except ValidationError as e:
-        logger.error(f"Validation error while populating {collection_name}: {e}")
+        logger.error(
+            f"Validation error while populating {collection_name}: {e}")
 
     collection = db.get_collection(collection_name)
     collection.insert_many(records)
-    logger.info(f"Successfully populated {collection_name} with {len(records)} records")
+    logger.info(
+        f"Successfully populated {collection_name} with {len(records)} records")
 
 
 def create_search_index_for_entity_types(
@@ -299,12 +316,14 @@ def create_search_index_for_entity_types(
     )
 
     try:
-        result = collection.create_search_index(model=vector_search_index_model)
+        result = collection.create_search_index(
+            model=vector_search_index_model)
         logger.info("Creating index...")
         time.sleep(20)
         logger.info(f"New index {index_name} created successfully: {result}")
     except Exception as e:
-        logger.error(f"Error creating new vector search index {index_name}: {str(e)}")
+        logger.error(
+            f"Error creating new vector search index {index_name}: {str(e)}")
 
 
 def create_search_index_for_properties(
@@ -334,12 +353,14 @@ def create_search_index_for_properties(
     )
 
     try:
-        result = collection.create_search_index(model=vector_search_index_model)
+        result = collection.create_search_index(
+            model=vector_search_index_model)
         logger.info("Creating index...")
         time.sleep(20)
         logger.info(f"New index {index_name} created successfully: {result}")
     except Exception as e:
-        logger.error(f"Error creating new vector search index {index_name}: {str(e)}")
+        logger.error(
+            f"Error creating new vector search index {index_name}: {str(e)}")
 
 
 def create_indexes(db):
