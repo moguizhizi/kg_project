@@ -90,15 +90,13 @@ def drop_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def fill_na_values(
-    df: pd.DataFrame,
-    fill_value: Optional[str] = None,
-) -> pd.DataFrame:
+def fill_na_values(df: pd.DataFrame) -> pd.DataFrame:
     """
-    统一 NaN / None
+    保持 DataFrame 内部为 NaN，
+    在导出 records 时再转为 None
     """
-    logger.info("Filling NA values")
-    return df.fillna(fill_value)
+    logger.info("Keeping NA values as NaN (will normalize at export stage)")
+    return df
 
 
 def parse_date_fields(
@@ -196,18 +194,39 @@ def xlsx_to_records(
     df = load_xlsx(path, sheet_name=sheet_name)
     df = normalize_columns(df, column_mapping=column_mapping)
     df = drop_empty_rows(df)
-    df = fill_na_values(df, fill_value=None)
+    df = fill_na_values(df)
 
-    if required_fields:
-        validate_schema(df, required_fields)
+    if not df.empty:
+        logger.info(f"Sample row (first): {df.iloc[0].to_dict()}")
 
-    if date_fields:
-        df = parse_date_fields(df, date_fields)
+    # 校验（可选）
+    # if required_fields:
+    #     validate_schema(df, required_fields)
 
-    if multi_value_fields:
-        df = split_multi_value_fields(df, multi_value_fields)
+    # 日期解析（可选）
+    # if date_fields:
+    #     df = parse_date_fields(df, date_fields)
 
-    records = df.to_dict(orient="records")
+    # 多值字段拆分（可选）
+    # if multi_value_fields:
+    #     df = split_multi_value_fields(df, multi_value_fields)
+
+    # 🔥 核心：导出 records，并把 NaN → None
+    records = df.where(pd.notnull(df), None).to_dict(orient="records")
+
     logger.info(f"Generated {len(records)} records")
-
     return records
+
+
+if __name__ == "__main__":
+    xlsx_path = "/home/temp/dataset/temp.xlsx"
+
+    records = xlsx_to_records(
+        path=xlsx_path,
+        sheet_name="Sheet1",
+    )
+
+    logger.info(f"Total records loaded: {len(records)}")
+
+    if records:
+        logger.info(f"First record: {records[0]}")
