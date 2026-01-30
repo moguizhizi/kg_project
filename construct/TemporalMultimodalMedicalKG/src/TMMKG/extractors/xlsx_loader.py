@@ -205,9 +205,6 @@ def xlsx_to_records(
     df = drop_empty_rows(df)
     df = fill_na_values(df)
 
-    if not df.empty:
-        logger.info(f"Sample row (first): {df.iloc[3].to_dict()}")
-
     # 校验（可选）
     if required_fields:
         validate_schema(df, required_fields)
