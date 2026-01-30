@@ -5,19 +5,21 @@ xlsx_loader.py
 - 从 XLSX 文件加载数据
 - 做最基础、可复用的数据清洗
 - 输出统一的 List[Dict] 结构，供三元组抽取使用
-
-不负责：
-- 三元组抽取
-- 本体映射
-- LLM 调用
 """
 
 from __future__ import annotations
 
 import os
+import logging
 from typing import List, Dict, Optional, Union
 
 import pandas as pd
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 # =========================
@@ -26,15 +28,22 @@ import pandas as pd
 
 
 def load_xlsx(
-    path: str, sheet_name: Union[str, int, None] = 0, header: int = 0
+    path: str,
+    sheet_name: Union[str, int, None] = 0,
+    header: int = 0,
 ) -> pd.DataFrame:
     """
     加载 XLSX 文件，返回原始 DataFrame
     """
+    logger.info(f"Loading XLSX file: {path}, sheet={sheet_name}")
+
     if not os.path.exists(path):
+        logger.error(f"XLSX file not found: {path}")
         raise FileNotFoundError(f"XLSX file not found: {path}")
 
     df = pd.read_excel(path, sheet_name=sheet_name, header=header)
+
+    logger.info(f"Loaded DataFrame with shape {df.shape}")
     return df
 
 
@@ -54,11 +63,16 @@ def normalize_columns(
     df = df.copy()
 
     if strip_whitespace:
+        old_cols = list(df.columns)
         df.columns = [str(c).strip() for c in df.columns]
+        if old_cols != list(df.columns):
+            logger.info("Stripped whitespace from column names")
 
     if column_mapping:
+        logger.info(f"Applying column mapping: {column_mapping}")
         df = df.rename(columns=column_mapping)
 
+    logger.debug(f"Final columns: {list(df.columns)}")
     return df
 
 
@@ -66,19 +80,31 @@ def drop_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
     删除全为空的行
     """
-    return df.dropna(how="all")
+    before = len(df)
+    df = df.dropna(how="all")
+    after = len(df)
+
+    if before != after:
+        logger.info(f"Dropped {before - after} empty rows")
+
+    return df
 
 
-def fill_na_values(df: pd.DataFrame, fill_value: Optional[str] = None) -> pd.DataFrame:
+def fill_na_values(
+    df: pd.DataFrame,
+    fill_value: Optional[str] = None,
+) -> pd.DataFrame:
     """
     统一 NaN / None
     """
-    df = df.copy()
+    logger.info("Filling NA values")
     return df.fillna(fill_value)
 
 
 def parse_date_fields(
-    df: pd.DataFrame, date_fields: List[str], date_format: Optional[str] = None
+    df: pd.DataFrame,
+    date_fields: List[str],
+    date_format: Optional[str] = None,
 ) -> pd.DataFrame:
     """
     将日期字段统一转为 ISO 格式字符串
@@ -87,17 +113,23 @@ def parse_date_fields(
 
     for field in date_fields:
         if field not in df.columns:
+            logger.warning(f"Date field not found, skip: {field}")
             continue
 
+        logger.info(f"Parsing date field: {field}")
         df[field] = pd.to_datetime(
-            df[field], format=date_format, errors="coerce"
+            df[field],
+            format=date_format,
+            errors="coerce",
         ).dt.strftime("%Y-%m-%d")
 
     return df
 
 
 def split_multi_value_fields(
-    df: pd.DataFrame, fields: List[str], sep: str = ","
+    df: pd.DataFrame,
+    fields: List[str],
+    sep: str = ",",
 ) -> pd.DataFrame:
     """
     拆分多值字段（如 疾病：A,B,C）
@@ -107,7 +139,10 @@ def split_multi_value_fields(
 
     for field in fields:
         if field not in df.columns:
+            logger.warning(f"Multi-value field not found, skip: {field}")
             continue
+
+        logger.info(f"Splitting multi-value field: {field}")
 
         def _split(val):
             if pd.isna(val):
@@ -130,9 +165,14 @@ def validate_schema(df: pd.DataFrame, required_fields: List[str]) -> None:
     """
     校验必需字段是否存在
     """
+    logger.info(f"Validating required fields: {required_fields}")
+
     missing = [f for f in required_fields if f not in df.columns]
     if missing:
+        logger.error(f"Missing required fields: {missing}")
         raise ValueError(f"Missing required fields: {missing}")
+
+    logger.info("Schema validation passed")
 
 
 # =========================
@@ -151,6 +191,8 @@ def xlsx_to_records(
     """
     XLSX → 干净的 records（List[Dict]）
     """
+    logger.info("Starting XLSX to records pipeline")
+
     df = load_xlsx(path, sheet_name=sheet_name)
     df = normalize_columns(df, column_mapping=column_mapping)
     df = drop_empty_rows(df)
@@ -165,4 +207,7 @@ def xlsx_to_records(
     if multi_value_fields:
         df = split_multi_value_fields(df, multi_value_fields)
 
-    return df.to_dict(orient="records")
+    records = df.to_dict(orient="records")
+    logger.info(f"Generated {len(records)} records")
+
+    return records
