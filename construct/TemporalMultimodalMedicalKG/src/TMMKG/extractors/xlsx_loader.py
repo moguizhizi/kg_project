@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import logging
+import math
 from typing import List, Dict, Optional, Union
 
 import pandas as pd
@@ -74,6 +75,14 @@ def normalize_columns(
 
     logger.debug(f"Final columns: {list(df.columns)}")
     return df
+
+
+def normalize_record_nans(records: List[Dict]) -> List[Dict]:
+    for r in records:
+        for k, v in r.items():
+            if isinstance(v, float) and math.isnan(v):
+                r[k] = None
+    return records
 
 
 def drop_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
@@ -211,8 +220,8 @@ def xlsx_to_records(
     # if multi_value_fields:
     #     df = split_multi_value_fields(df, multi_value_fields)
 
-    # 🔥 核心：导出 records，并把 NaN → None
     records = df.where(pd.notnull(df), None).to_dict(orient="records")
+    records = normalize_record_nans(records)
 
     logger.info(f"Generated {len(records)} records")
     return records
