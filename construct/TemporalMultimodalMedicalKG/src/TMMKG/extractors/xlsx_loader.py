@@ -206,19 +206,19 @@ def xlsx_to_records(
     df = fill_na_values(df)
 
     if not df.empty:
-        logger.info(f"Sample row (first): {df.iloc[0].to_dict()}")
+        logger.info(f"Sample row (first): {df.iloc[3].to_dict()}")
 
     # 校验（可选）
-    # if required_fields:
-    #     validate_schema(df, required_fields)
+    if required_fields:
+        validate_schema(df, required_fields)
 
     # 日期解析（可选）
-    # if date_fields:
-    #     df = parse_date_fields(df, date_fields)
+    if date_fields:
+        df = parse_date_fields(df, date_fields)
 
     # 多值字段拆分（可选）
-    # if multi_value_fields:
-    #     df = split_multi_value_fields(df, multi_value_fields)
+    if multi_value_fields:
+        df = split_multi_value_fields(df, multi_value_fields)
 
     records = df.where(pd.notnull(df), None).to_dict(orient="records")
     records = normalize_record_nans(records)
@@ -230,12 +230,17 @@ def xlsx_to_records(
 if __name__ == "__main__":
     xlsx_path = "/home/temp/dataset/temp.xlsx"
 
+    date_fields = ["训练日期"]
+    multi_value_fields = ["疾病"]
+
     records = xlsx_to_records(
         path=xlsx_path,
         sheet_name="Sheet1",
+        date_fields=date_fields,
+        multi_value_fields=multi_value_fields,
     )
 
     logger.info(f"Total records loaded: {len(records)}")
 
     if records:
-        logger.info(f"First record: {records[0]}")
+        logger.info(f"First record: {records[3]}")
