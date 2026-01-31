@@ -12,12 +12,9 @@ import argparse
 import logging
 import os
 from pathlib import Path
-import torch
 from dotenv import load_dotenv, find_dotenv
 from qdrant_client import QdrantClient
 
-from TMMKG.services.llm_path_resolver import build_llm_path
-from TMMKG.services.model_registry import get_embedding_spec
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
 from TMMKG.services.encoder.registry import get_text_encoder
 
