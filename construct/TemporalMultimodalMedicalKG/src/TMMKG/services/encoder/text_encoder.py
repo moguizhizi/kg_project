@@ -1,6 +1,13 @@
+import logging
 import torch
 from transformers import AutoTokenizer, AutoModel
 from typing import List, Union
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 class TextEncoder:
@@ -22,16 +29,28 @@ class TextEncoder:
         )
         self.max_length = max_length
 
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name, local_files_only=True, trust_remote_code=False
+        logger.info(
+            f"Initializing TextEncoder | model={model_name} | device={self.device}"
         )
 
+        logger.info("Loading tokenizer...")
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name,
+            local_files_only=True,
+            trust_remote_code=False,
+        )
+
+        logger.info("Loading model...")
         self.model = AutoModel.from_pretrained(
             self.model_name,
             local_files_only=True,
             trust_remote_code=False,
             use_safetensors=False,
-        ).to(device)
+        ).to(self.device)
+
+        self.model.eval()
+
+        logger.info(f"TextEncoder ready | max_length={self.max_length}")
 
     @torch.no_grad()
     def encode(self, text: str) -> List[float]:
@@ -39,7 +58,10 @@ class TextEncoder:
         Encode a single text into a dense vector.
         """
         if not isinstance(text, str) or not text.strip():
+            logger.error("encode() received empty or invalid text")
             raise ValueError("TextEncoder.encode expects a non-empty string")
+
+        logger.debug(f"Encoding text (len={len(text)})")
 
         inputs = self.tokenizer(
             text,
@@ -52,10 +74,14 @@ class TextEncoder:
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
         outputs = self.model(**inputs)
 
-        # mean pooling over token embeddings
+        # mean pooling
         last_hidden = outputs.last_hidden_state  # (1, seq_len, dim)
         attention_mask = inputs["attention_mask"].unsqueeze(-1)
 
         pooled = (last_hidden * attention_mask).sum(dim=1) / attention_mask.sum(dim=1)
 
-        return pooled[0].cpu().tolist()
+        vector = pooled[0].cpu().tolist()
+
+        logger.debug(f"Encoding finished | dim={len(vector)}")
+
+        return vector
