@@ -1,10 +1,8 @@
 from pymongo.mongo_client import MongoClient
 from pymongo.operations import SearchIndexModel
-import pymongo
 
 from typing import List
 from pydantic import BaseModel, ValidationError
-from transformers import AutoTokenizer, AutoModel
 from tqdm import tqdm
 import json
 import time
@@ -15,6 +13,8 @@ from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from qdrant_client import QdrantClient
 
+from TMMKG.infra.mongo import MongoConnection
+from TMMKG.infra.qdrant import QdrantConnection
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
 from TMMKG.services.encoder.registry import get_text_encoder
 
@@ -516,11 +516,12 @@ def create_wikidata_ontology_database(
     logger.info("Successfully loaded all mapping files")
 
     # Connect to MongoDB
-    mongo_client = get_mongo_client(mongo_uri)
-    db = mongo_client.get_database(database)
+    mongo = MongoConnection(mongo_uri, database)
+    db = mongo.connect()
 
     # Connect to qdrant
-    qdrant_client = get_qdrant_client(qdrant_uri)
+    qdrant = QdrantConnection(qdrant_uri)
+    qdrant_client = qdrant.connect()
 
     # Drop all existing collections
     if drop_collections:
