@@ -7,7 +7,7 @@ class EmbeddingModelSpec:
     embedding_dim: int
 
 
-LLM_MODEL_REGISTRY: dict[str, EmbeddingModelSpec] = {
+EMBEDDING_MODEL_REGISTRY: dict[str, EmbeddingModelSpec] = {
     "facebook/contriever": EmbeddingModelSpec(
         name="facebook/contriever",
         embedding_dim=768,
@@ -15,8 +15,14 @@ LLM_MODEL_REGISTRY: dict[str, EmbeddingModelSpec] = {
 }
 
 
-def get_embedding_dim(model_name: str) -> int:
+def get_embedding_spec(model_name: str) -> EmbeddingModelSpec:
+    """
+    Return embedding model specification.
+    """
     try:
-        return LLM_MODEL_REGISTRY[model_name].embedding_dim
+        return EMBEDDING_MODEL_REGISTRY[model_name]
     except KeyError:
-        raise ValueError(f"Unknown model_name: {model_name}")
+        raise ValueError(
+            f"Unknown embedding model: {model_name}. "
+            f"Available: {list(EMBEDDING_MODEL_REGISTRY.keys())}"
+        )
