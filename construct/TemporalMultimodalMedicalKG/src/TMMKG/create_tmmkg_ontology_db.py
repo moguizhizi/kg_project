@@ -17,8 +17,9 @@ from dotenv import load_dotenv, find_dotenv
 from qdrant_client import QdrantClient
 
 from TMMKG.services.llm_path_resolver import build_llm_path
-from TMMKG.services.model_registry import get_embedding_dim
+from TMMKG.services.model_registry import get_embedding_spec
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
+from TMMKG.services.encoder.registry import get_text_encoder
 
 from qdrant_client.http.models import PointStruct
 from tqdm import tqdm
@@ -33,29 +34,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-# Check for local model first, then fall back to remote
-model_name = "facebook/contriever"
-local_model_path = build_llm_path(model_name, os.getenv("LLM_ROOT"))
-
-if os.path.exists(local_model_path) and os.path.isdir(local_model_path):
-    model_path = local_model_path
-else:
-    model_path = model_name
-
-embed_dim = get_embedding_dim(model_name)
-
-tokenizer = AutoTokenizer.from_pretrained(
-    model_path, local_files_only=True, trust_remote_code=False
+encoder, embed_dim = get_text_encoder(
+    "contriever",
+    model_root=os.getenv("LLM_ROOT"),
 )
-
-model = AutoModel.from_pretrained(
-    model_path,
-    local_files_only=True,
-    trust_remote_code=False,
-    use_safetensors=False,
-).to(device)
 
 
 class EntityType(BaseModel):
@@ -87,26 +69,6 @@ class PropertyAlias(BaseModel):
     relation_id: str
     alias_label: str
     alias_text_embedding: List[float]
-
-
-def get_embedding(text):
-    def mean_pooling(token_embeddings, mask):
-        token_embeddings = token_embeddings.masked_fill(~mask[..., None].bool(), 0.0)
-        sentence_embeddings = token_embeddings.sum(dim=1) / mask.sum(dim=1)[..., None]
-        return sentence_embeddings
-
-    if not text or not isinstance(text, str):
-        return None
-
-    try:
-        inputs = tokenizer([text], padding=True, truncation=True, return_tensors="pt")
-        outputs = model(**inputs.to("cuda"))
-        embeddings = mean_pooling(outputs[0], inputs["attention_mask"])
-        return embeddings.detach().cpu().tolist()[0]
-
-    except Exception as e:
-        logger.error(f"Error in get_embedding: {e}")
-        return None
 
 
 def get_mongo_client(mongo_uri):
@@ -252,7 +214,7 @@ def populate_entity_type_aliases(
     for entity_type, aliases in tqdm(ENTITY_TYPE_2_ALIASES.items()):
         # 主 label
         label = ENTITY_TYPE_2_LABEL[entity_type]
-        embedding = get_embedding(label)
+        embedding = encoder.encode(label)
 
         points.append(
             PointStruct(
@@ -269,7 +231,7 @@ def populate_entity_type_aliases(
 
         # aliases
         for alias in aliases:
-            embedding = get_embedding(alias)
+            embedding = encoder.encode(alias)
             points.append(
                 PointStruct(
                     id=point_id,
@@ -350,7 +312,7 @@ def populate_property_aliases(
     for prop, aliases in tqdm(PROP_2_ALIASES.items()):
         # 主 label（canonical）
         label = PROP_2_LABEL[prop]
-        embedding = get_embedding(label)
+        embedding = encoder.encode(label)
 
         points.append(
             PointStruct(
@@ -367,7 +329,7 @@ def populate_property_aliases(
 
         # aliases
         for alias in aliases:
-            embedding = get_embedding(alias)
+            embedding = encoder.encode(alias)
             points.append(
                 PointStruct(
                     id=point_id,
