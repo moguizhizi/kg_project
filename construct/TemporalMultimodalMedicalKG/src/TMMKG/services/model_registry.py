@@ -2,13 +2,13 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class LLMModelSpec:
+class EmbeddingModelSpec:
     name: str
     embedding_dim: int
 
 
-LLM_MODEL_REGISTRY: dict[str, LLMModelSpec] = {
-    "facebook/contriever": LLMModelSpec(
+LLM_MODEL_REGISTRY: dict[str, EmbeddingModelSpec] = {
+    "facebook/contriever": EmbeddingModelSpec(
         name="facebook/contriever",
         embedding_dim=768,
     ),
