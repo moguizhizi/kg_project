@@ -12,6 +12,10 @@ EMBEDDING_MODEL_REGISTRY: dict[str, EmbeddingModelSpec] = {
         name="facebook/contriever",
         embedding_dim=768,
     ),
+    "Qwen/Qwen3-Embedding-8B": EmbeddingModelSpec(
+        name="Qwen/Qwen3-Embedding-8B",
+        embedding_dim=4096,
+    ),
 }
 
 
