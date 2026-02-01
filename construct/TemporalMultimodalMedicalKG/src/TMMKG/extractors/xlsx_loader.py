@@ -12,15 +12,25 @@ from __future__ import annotations
 import os
 import logging
 import math
+import json
+from pathlib import Path
 from typing import List, Dict, Optional, Union
 
 import pandas as pd
+
+from TMMKG.utils.xlsx_utils import build_column_mapping
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
+HOME_BASED_USER_TRAINING = (
+    BASE_DIR / "utils" / "entity_registry" / "Home-based_user_training"
+)
 
 
 # =========================
@@ -228,13 +238,30 @@ if __name__ == "__main__":
     xlsx_path = "/home/temp/dataset/temp.xlsx"
 
     date_fields = ["训练日期"]
-    multi_value_fields = ["疾病"]
+    multi_value_fields = ["执行疾病"]
+
+    with open(os.path.join(ONTOLOGY_MAPPINGS_DIR, "entity_type2label.json"), "r") as f:
+        ENTITY_TYPE_2_LABEL = json.load(f)
+
+    with open(os.path.join(ONTOLOGY_MAPPINGS_DIR, "prop2label.json"), "r") as f:
+        PROP_2_LABEL = json.load(f)
+
+    with open(os.path.join(HOME_BASED_USER_TRAINING, "column_mapping.json"), "r") as f:
+        COLUMN_MAPPING = json.load(f)
+
+    column_mapping = build_column_mapping(
+        excel_to_label=COLUMN_MAPPING,
+        property_ontology=ENTITY_TYPE_2_LABEL,
+        entity_ontology=PROP_2_LABEL,
+        strict=True,
+    )
 
     records = xlsx_to_records(
         path=xlsx_path,
         sheet_name="Sheet1",
         date_fields=date_fields,
         multi_value_fields=multi_value_fields,
+        column_mapping=column_mapping,
     )
 
     logger.info(f"Total records loaded: {len(records)}")
