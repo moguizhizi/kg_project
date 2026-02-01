@@ -6,6 +6,7 @@ from TMMKG.services.llm_path_resolver import build_llm_path
 
 _ENCODER_TABLE = {
     "contriever": "facebook/contriever",
+    "Qwen3-Embedding-8B": "Qwen/Qwen3-Embedding-8B",
 }
 
 

@@ -13,6 +13,10 @@ class QdrantVectorStore(VectorStore):
         distance: Distance = Distance.COSINE,
         client: QdrantClient = None,
     ):
+
+        if client is None:
+            raise ValueError("QdrantClient must be provided")
+
         self.collection_name = collection_name
         self.vector_size = vector_size
         self.distance = distance
@@ -38,12 +42,26 @@ class QdrantVectorStore(VectorStore):
         )
 
     def search(self, query_vector, top_k, filter=None):
-        return self.client.search(
+
+        response = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=top_k,
+            with_payload=True,
             query_filter=filter,
         )
+
+        results = []
+        for p in response.points:
+            results.append(
+                {
+                    "id": p.id,
+                    "score": p.score,
+                    "payload": p.payload,
+                }
+            )
+
+        return results
 
     def _ensure_collection(self):
         if not self.exists():
