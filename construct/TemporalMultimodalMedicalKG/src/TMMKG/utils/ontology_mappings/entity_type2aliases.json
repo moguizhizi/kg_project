@@ -213,5 +213,8 @@
         "amount",
         "qty",
         "quantulum"
+    ],
+    "AU_Q0038": [
+        "任务类别"
     ]
 }

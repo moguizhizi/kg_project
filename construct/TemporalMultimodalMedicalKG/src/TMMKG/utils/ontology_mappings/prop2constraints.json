@@ -12,7 +12,7 @@
             "AU_Q0003"
         ],
         "Value-type constraint": [
-            "AU_Q0022"
+            "AU_Q0021"
         ]
     },
     "AU_P0003": {
@@ -305,23 +305,16 @@
     },
     "AU_P0039": {
         "Subject type constraint": [
-            "AU_Q0022"
+            "AU_Q0021"
         ],
         "Value-type constraint": [
             "AU_Q0032"
         ]
     },
-    "AU_P0040": {
-        "Subject type constraint": [
-            "AU_Q0022"
-        ],
-        "Value-type constraint": [
-            "AU_Q0026"
-        ]
-    },
     "AU_P0041": {
         "Subject type constraint": [
-            "AU_Q0001"
+            "AU_Q0001",
+            "AU_Q0011"
         ],
         "Value-type constraint": [
             "AU_Q0026"
@@ -421,6 +414,23 @@
         ],
         "Value-type constraint": [
             "AU_Q0037"
+        ]
+    },
+    "AU_P0054": {
+        "Subject type constraint": [
+            "AU_Q0011",
+            "AU_Q0021"
+        ],
+        "Value-type constraint": [
+            "AU_Q0026"
+        ]
+    },
+    "AU_P0055": {
+        "Subject type constraint": [
+            "AU_Q0011"
+        ],
+        "Value-type constraint": [
+            "AU_Q0038"
         ]
     }
 }
