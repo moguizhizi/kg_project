@@ -145,7 +145,8 @@
     },
     "AU_P0019": {
         "Subject type constraint": [
-            "AU_Q0010"
+            "AU_Q0010",
+            "AU_Q0039"
         ],
         "Value-type constraint": [
             "AU_Q0013"
