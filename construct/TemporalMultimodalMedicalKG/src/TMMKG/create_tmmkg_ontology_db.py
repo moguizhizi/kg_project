@@ -15,6 +15,7 @@ from qdrant_client import QdrantClient
 
 from TMMKG.infra.mongo import MongoConnection
 from TMMKG.infra.qdrant import QdrantConnection
+from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
 from TMMKG.services.encoder.registry import get_text_encoder
 
@@ -32,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 encoder, embed_dim = get_text_encoder(
-    "contriever",
+    "Qwen3-Embedding-8B",
     model_root=os.getenv("LLM_ROOT"),
 )
 
@@ -541,11 +542,17 @@ def create_wikidata_ontology_database(
         collection_name=entity_types_collection,
     )
 
+    base_entity_type_aliases_collection = entity_type_aliases_collection
+
+    physical_entity_type_aliases_collection = build_collection_name(
+        base_entity_type_aliases_collection, encoder
+    )
+
     populate_entity_type_aliases(
         ENTITY_TYPE_2_LABEL,
         ENTITY_TYPE_2_ALIASES,
         qdrant_client,
-        collection_name=entity_type_aliases_collection,
+        collection_name=physical_entity_type_aliases_collection,
     )
 
     populate_enum_entity_type(
@@ -559,11 +566,17 @@ def create_wikidata_ontology_database(
         PROP_2_LABEL, PROP_2_CONSTRAINT, db, collection_name=properties_collection
     )
 
+    base_property_aliases_collection = property_aliases_collection
+
+    physical_property_aliases_collection = build_collection_name(
+        base_property_aliases_collection, encoder
+    )
+
     populate_property_aliases(
         PROP_2_LABEL,
         PROP_2_ALIASES,
         qdrant_client,
-        collection_name=property_aliases_collection,
+        collection_name=physical_property_aliases_collection,
     )
 
     logger.info("Database population process completed")

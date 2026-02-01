@@ -14,9 +14,15 @@ def extract_llm_name(model_path: PathLike, llm_root: PathLike) -> str:
         raise ValueError(f"Invalid LLM path: {model_path}, root: {llm_root}") from e
 
 
-def build_llm_path(llm_name: str, llm_root: PathLike) -> Path:
+def build_llm_path(llm_name: str, llm_root: Union[str, PathLike]) -> str:
+    """
+    Build absolute local path for an LLM model.
+
+    Returns:
+        str: absolute path string
+    """
     llm_root = Path(llm_root).resolve()
-    return llm_root / llm_name
+    return str(llm_root / llm_name)
 
 
 def validate_llm_path(model_path: PathLike, llm_root: PathLike) -> None:
