@@ -237,9 +237,6 @@ def xlsx_to_records(
 if __name__ == "__main__":
     xlsx_path = "/home/temp/dataset/temp.xlsx"
 
-    date_fields = ["训练日期"]
-    multi_value_fields = ["执行疾病"]
-
     with open(os.path.join(ONTOLOGY_MAPPINGS_DIR, "entity_type2label.json"), "r") as f:
         ENTITY_TYPE_2_LABEL = json.load(f)
 
@@ -255,6 +252,9 @@ if __name__ == "__main__":
         entity_ontology=PROP_2_LABEL,
         strict=True,
     )
+
+    date_fields = [column_mapping["训练日期"]]
+    multi_value_fields = [column_mapping["疾病"]]
 
     records = xlsx_to_records(
         path=xlsx_path,
