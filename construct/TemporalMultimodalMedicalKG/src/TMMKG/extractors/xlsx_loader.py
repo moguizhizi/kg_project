@@ -234,6 +234,42 @@ def xlsx_to_records(
     return records
 
 
+def records_to_xlsx(
+    records: List[Dict],
+    output_path: str,
+    sheet_name: str = "records",
+) -> None:
+    """
+    将 List[Dict] records 保存为 XLSX
+
+    - list / dict 字段会序列化为 JSON 字符串
+    """
+    if not records:
+        logger.warning("No records to save, skipping XLSX export")
+        return
+
+    logger.info(f"Saving {len(records)} records to XLSX: {output_path}")
+
+    def _serialize(val):
+        if isinstance(val, (list, dict)):
+            return json.dumps(val, ensure_ascii=False)
+        return val
+
+    df = pd.DataFrame(records)
+
+    # 统一序列化复杂字段
+    for col in df.columns:
+        df[col] = df[col].apply(_serialize)
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+    logger.info("XLSX export completed")
+
+
 if __name__ == "__main__":
     xlsx_path = "/home/temp/dataset/temp.xlsx"
 
@@ -268,3 +304,6 @@ if __name__ == "__main__":
 
     if records:
         logger.info(f"First record: {records[3]}")
+
+    output_xlsx = "/home/temp/dataset/temp.normalized.xlsx"
+    records_to_xlsx(records, output_xlsx)
