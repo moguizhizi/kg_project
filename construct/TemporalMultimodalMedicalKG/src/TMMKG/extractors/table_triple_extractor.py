@@ -38,6 +38,8 @@ TypedFact = Tuple[
     str,  # tail_entity_type (AU_Qxxx or literal)
 ]
 
+EntityKey = Tuple[Any, Any]  # entity, entity_type
+
 
 # =========================
 # 顶层入口
@@ -48,6 +50,67 @@ def extract_triples_from_records(
     records: List[Dict[str, Any]],
 ) -> List[TypedFact]:
     pass
+
+
+def extract_entity_facts(attribute_facts: List[TypedFact]) -> List[TypedFact]:
+    """
+    从 extract_attribute_triples 输出的六元组构建实体层级关系六元组:
+      病人 -> 实例集合
+      实例集合 -> 任务事例
+      任务事例 -> 任务
+    Args:
+        attribute_facts: 已抽取属性六元组列表
+    Returns:
+        List[TypedFact]: 实体层级关系六元组
+    """
+    entity_facts: List[TypedFact] = []
+
+    # 构建映射集合
+    patients: Set[Tuple[Any, str]] = set()
+    instance_sets: Set[Tuple[str, str]] = set()
+    task_instances: Set[Tuple[str, str]] = set()
+
+    for head, head_type, _, _, _, _ in attribute_facts:
+        # 病人
+        if head_type == COLUMN_MAPPING["患者id"]:
+            patients.add((head, head_type))
+        # 实例集合
+        elif head_type == "AU_Q0039":
+            instance_sets.add((head, head_type))
+        # 任务事例
+        elif head_type == "AU_Q0012":
+            task_instances.add((head, head_type))
+
+    # 构建实体层级关系
+    # 病人 -> 实例集合
+    patient_to_instance = [
+        (p[0], p[1], PROP_2_LABEL["AU_P0057"], "AU_P0057", i[0], i[1])
+        for p in patients
+        for i in instance_sets
+        if str(i[0]).startswith(str(p[0]))  # 55_20211231 开头是 55
+    ]
+
+    # 实例集合 -> 任务事例
+    instance_to_task_instance = [
+        (i[0], i[1], PROP_2_LABEL["AU_P0058"], "AU_P0058", t[0], t[1])
+        for i in instance_sets
+        for t in task_instances
+        if str(t[0]).startswith(str(i[0]))  # 55_20211231_33 开头是 55_20211231
+    ]
+
+    # 任务事例 -> 任务
+    task_instance_to_task = [
+        (t[0], t[1], PROP_2_LABEL["AU_P0056"], "AU_P0056", head, head_type)
+        for t in task_instances
+        for head, head_type, rel_label, prop, tail, tail_type in attribute_facts
+        if str(t[0]).endswith(str(tail)) and head_type == "AU_Q0023"
+    ]
+
+    entity_facts.extend(patient_to_instance)
+    entity_facts.extend(instance_to_task_instance)
+    entity_facts.extend(task_instance_to_task)
+
+    return entity_facts
 
 
 # =========================
@@ -75,7 +138,7 @@ def _emit_fact(
     )
 
 
-def extract_attribute_triples(
+def extract_attribute_facts(
     record: Dict[str, Any],
     skip_fields: Optional[Set[str]] = None,
 ) -> List[TypedFact]:
@@ -205,17 +268,29 @@ def main():
     logger.info(f"Loaded {len(records)} records")
 
     all_facts = []
+    all_entity_facts = []
 
     for idx, record in enumerate(records):
-        facts = extract_attribute_triples(record)
+        # 抽取属性六元组
+        facts = extract_attribute_facts(record)
         all_facts.extend(facts)
 
         if idx < 3:  # 只打印前几条做 sanity check
-            logger.info(f"[Record {idx}] extracted {len(facts)} facts")
+            logger.info(f"[Record {idx}] extracted {len(facts)} attribute facts")
             for f in facts:
                 logger.info(f"  {f}")
 
-    logger.info(f"Total facts extracted: {len(all_facts)}")
+        # 抽取实体层级六元组
+        entity_facts = extract_entity_facts(facts)
+        all_entity_facts.extend(entity_facts)
+
+        if idx < 3:
+            logger.info(f"[Record {idx}] extracted {len(entity_facts)} entity facts")
+            for ef in entity_facts[:5]:  # 只打印前5条防止太长
+                logger.info(f"  {ef}")
+
+    logger.info(f"Total attribute facts extracted: {len(all_facts)}")
+    logger.info(f"Total entity facts extracted: {len(all_entity_facts)}")
 
 
 if __name__ == "__main__":
