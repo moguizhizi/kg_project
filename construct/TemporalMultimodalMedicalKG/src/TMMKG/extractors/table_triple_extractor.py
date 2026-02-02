@@ -44,12 +44,21 @@ EntityKey = Tuple[Any, Any]  # entity, entity_type
 # =========================
 # 顶层入口
 # =========================
-
-
-def extract_triples_from_records(
+def extract_facts_from_records(
     records: List[Dict[str, Any]],
 ) -> List[TypedFact]:
-    pass
+    all_facts = []
+    for record in records:
+        attribute_facts = extract_attribute_facts(record)
+        all_facts.extend(attribute_facts)
+        all_facts.extend(extract_entity_facts(record, attribute_facts))
+
+    return all_facts
+
+
+# =========================
+# 实体六元组
+# =========================
 
 
 def extract_entity_facts(
@@ -127,7 +136,7 @@ def extract_entity_facts(
 
 
 # =========================
-# 属性三元组
+# 属性六元组
 # =========================
 
 
@@ -280,30 +289,22 @@ def main():
 
     logger.info(f"Loaded {len(records)} records")
 
-    all_facts = []
-    all_entity_facts = []
+    # ======== 正式抽取（统一入口） ========
+    all_facts = extract_facts_from_records(records)
+    logger.info(f"Total facts extracted: {len(all_facts)}")
 
-    for idx, record in enumerate(records):
-        # 抽取属性六元组
-        facts = extract_attribute_facts(record)
-        all_facts.extend(facts)
+    # ======== Sanity check：仅打印前几条 record ========
+    for idx, record in enumerate(records[:3]):
+        attribute_facts = extract_attribute_facts(record)
+        entity_facts = extract_entity_facts(record, attribute_facts)
 
-        if idx < 3:  # 只打印前几条做 sanity check
-            logger.info(f"[Record {idx}] extracted {len(facts)} attribute facts")
-            for f in facts:
-                logger.info(f"  {f}")
+        logger.info(f"[Record {idx}] extracted {len(attribute_facts)} attribute facts")
+        for f in attribute_facts:
+            logger.info(f"  {f}")
 
-        # 抽取实体层级六元组
-        entity_facts = extract_entity_facts(record, facts)
-        all_entity_facts.extend(entity_facts)
-
-        if idx < 3:
-            logger.info(f"[Record {idx}] extracted {len(entity_facts)} entity facts")
-            for ef in entity_facts[:5]:  # 只打印前5条防止太长
-                logger.info(f"  {ef}")
-
-    logger.info(f"Total attribute facts extracted: {len(all_facts)}")
-    logger.info(f"Total entity facts extracted: {len(all_entity_facts)}")
+        logger.info(f"[Record {idx}] extracted {len(entity_facts)} entity facts")
+        for ef in entity_facts[:5]:  # 防止太长
+            logger.info(f"  {ef}")
 
 
 if __name__ == "__main__":
