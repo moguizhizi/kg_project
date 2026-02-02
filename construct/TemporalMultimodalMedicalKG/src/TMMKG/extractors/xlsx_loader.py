@@ -282,22 +282,15 @@ if __name__ == "__main__":
     with open(os.path.join(HOME_BASED_USER_TRAINING, "column_mapping.json"), "r") as f:
         COLUMN_MAPPING = json.load(f)
 
-    column_mapping = build_column_mapping(
-        excel_to_label=COLUMN_MAPPING,
-        property_ontology=ENTITY_TYPE_2_LABEL,
-        entity_ontology=PROP_2_LABEL,
-        strict=True,
-    )
-
-    date_fields = [column_mapping["训练日期"]]
-    multi_value_fields = [column_mapping["疾病"]]
+    date_fields = [COLUMN_MAPPING["训练日期"]]
+    multi_value_fields = [COLUMN_MAPPING["疾病"]]
 
     records = xlsx_to_records(
         path=xlsx_path,
         sheet_name="Sheet1",
         date_fields=date_fields,
         multi_value_fields=multi_value_fields,
-        column_mapping=column_mapping,
+        column_mapping=COLUMN_MAPPING,
     )
 
     logger.info(f"Total records loaded: {len(records)}")
