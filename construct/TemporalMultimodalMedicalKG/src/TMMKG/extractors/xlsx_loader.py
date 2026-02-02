@@ -289,7 +289,7 @@ if __name__ == "__main__":
         path=xlsx_path,
         sheet_name="Sheet1",
         date_fields=date_fields,
-        multi_value_fields=multi_value_fields,
+        # multi_value_fields=multi_value_fields,
         column_mapping=COLUMN_MAPPING,
     )
 

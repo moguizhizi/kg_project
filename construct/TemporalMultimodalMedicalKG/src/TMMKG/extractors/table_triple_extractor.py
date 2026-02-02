@@ -52,7 +52,9 @@ def extract_triples_from_records(
     pass
 
 
-def extract_entity_facts(attribute_facts: List[TypedFact]) -> List[TypedFact]:
+def extract_entity_facts(
+    record: Dict[str, Any], attribute_facts: List[TypedFact]
+) -> List[TypedFact]:
     """
     从 extract_attribute_triples 输出的六元组构建实体层级关系六元组:
       病人 -> 实例集合
@@ -106,9 +108,20 @@ def extract_entity_facts(attribute_facts: List[TypedFact]) -> List[TypedFact]:
         if str(t[0]).endswith(str(tail)) and head_type == "AU_Q0023"
     ]
 
+    instance_to_disease = []
+    diseases = record[COLUMN_MAPPING["疾病"]]
+    if diseases is not None:
+        result = [item.strip() for item in diseases.split(",")]
+        for dis in result:
+            for i in instance_sets:
+                instance_to_disease.append(
+                    (i[0], i[1], PROP_2_LABEL["AU_P0019"], "AU_P0019", dis, "AU_Q0013")
+                )
+
     entity_facts.extend(patient_to_instance)
     entity_facts.extend(instance_to_task_instance)
     entity_facts.extend(task_instance_to_task)
+    entity_facts.extend(instance_to_disease)
 
     return entity_facts
 
@@ -281,7 +294,7 @@ def main():
                 logger.info(f"  {f}")
 
         # 抽取实体层级六元组
-        entity_facts = extract_entity_facts(facts)
+        entity_facts = extract_entity_facts(record, facts)
         all_entity_facts.extend(entity_facts)
 
         if idx < 3:
