@@ -1,10 +1,4 @@
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class EmbeddingModelSpec:
-    name: str
-    embedding_dim: int
+from TMMKG.meta_type import EmbeddingModelSpec
 
 
 EMBEDDING_MODEL_REGISTRY: dict[str, EmbeddingModelSpec] = {
