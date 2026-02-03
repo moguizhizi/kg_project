@@ -9,7 +9,7 @@ from TMMKG.infra.neo4j_db import create_neo4j_driver
 SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
     / "domains"
-    / "Home-based_user_training"
+    / "home_based_user_training"
     / "neo4j_node.json"
 )
 

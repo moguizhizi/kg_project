@@ -15,7 +15,7 @@ from TMMKG.meta_type import FactBundle, TypedFact
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
 HOME_BASED_USER_TRAINING = (
-    BASE_DIR / "utils" / "entity_registry" / "Home-based_user_training"
+    BASE_DIR / "utils" / "entity_registry" / "home_based_user_training"
 )
 
 logging.basicConfig(
