@@ -1,0 +1,20 @@
+{
+    "entity_type_map": {
+        "AU_Q0004": {
+            "label": "Patient",
+            "primary_key": "id"
+        },
+        "AU_Q0039": {
+            "label": "TaskInstanceSet",
+            "primary_key": "id"
+        },
+        "AU_Q0012": {
+            "label": "TaskInstance",
+            "primary_key": "id"
+        },
+        "AU_P0019": {
+            "label": "Disease",
+            "primary_key": "id"
+        }
+    }
+}
