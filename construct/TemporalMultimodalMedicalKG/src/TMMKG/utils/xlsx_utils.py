@@ -7,7 +7,7 @@ from typing import Dict
 
 BASE_DIR = Path(__file__).resolve().parent
 ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "ontology_mappings"
-HOME_BASED_USER_TRAINING = BASE_DIR / "entity_registry" / "Home-based_user_training"
+HOME_BASED_USER_TRAINING = BASE_DIR / "entity_registry" / "home_based_user_training"
 
 
 def build_column_mapping(
