@@ -5,11 +5,12 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
-from dataclasses import dataclass
+
 
 import logging
 
 from TMMKG.extractors.xlsx_loader import xlsx_to_records
+from TMMKG.meta_type import FactBundle, TypedFact
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
@@ -29,25 +30,6 @@ with open(os.path.join(ONTOLOGY_MAPPINGS_DIR, "prop2label.json"), "r") as f:
 
 with open(os.path.join(HOME_BASED_USER_TRAINING, "column_mapping.json"), "r") as f:
     COLUMN_MAPPING = json.load(f)
-
-
-TypedFact = Tuple[
-    Any,  # head
-    str,  # head_entity_type (AU_Qxxx)
-    str,  # relation (AU_Pxxx)
-    str,  # prop / role / slot（可选语义位）
-    Any,  # tail
-    str,  # tail_entity_type (AU_Qxxx or literal)
-]
-
-EntityKey = Tuple[Any, Any]  # entity, entity_type
-
-
-@dataclass
-class FactBundle:
-    attribute_facts: List[TypedFact]
-    entity_facts: List[TypedFact]
-    all_facts: List[TypedFact]
 
 
 # =========================
