@@ -82,7 +82,7 @@ def extract_entity_facts(
     instance_sets: Set[Tuple[str, str]] = set()
     task_instances: Set[Tuple[str, str]] = set()
 
-    for head, head_type, _, _, _, _ in attribute_facts:
+    for head, head_type, _, _, _, _, _ in attribute_facts:
         # 病人
         if head_type == COLUMN_MAPPING["患者id"]:
             patients.add((head, head_type))
@@ -96,7 +96,7 @@ def extract_entity_facts(
     # 构建实体层级关系
     # 病人 -> 实例集合
     patient_to_instance = [
-        (p[0], p[1], PROP_2_LABEL["AU_P0057"], "AU_P0057", i[0], i[1])
+        (p[0], p[1], "NA", PROP_2_LABEL["AU_P0057"], "AU_P0057", i[0], i[1])
         for p in patients
         for i in instance_sets
         if str(i[0]).startswith(str(p[0]))  # 55_20211231 开头是 55
@@ -104,7 +104,7 @@ def extract_entity_facts(
 
     # 实例集合 -> 任务事例
     instance_to_task_instance = [
-        (i[0], i[1], PROP_2_LABEL["AU_P0058"], "AU_P0058", t[0], t[1])
+        (i[0], i[1], "NA", PROP_2_LABEL["AU_P0058"], "AU_P0058", t[0], t[1])
         for i in instance_sets
         for t in task_instances
         if str(t[0]).startswith(str(i[0]))  # 55_20211231_33 开头是 55_20211231
@@ -112,9 +112,9 @@ def extract_entity_facts(
 
     # 任务事例 -> 任务
     task_instance_to_task = [
-        (t[0], t[1], PROP_2_LABEL["AU_P0056"], "AU_P0056", head, head_type)
+        (t[0], t[1], "NA", PROP_2_LABEL["AU_P0056"], "AU_P0056", head_name, head_type)
         for t in task_instances
-        for head, head_type, rel_label, prop, tail, tail_type in attribute_facts
+        for head, head_type, head_name, rel_label, prop, tail, tail_type in attribute_facts
         if str(t[0]).endswith(str(tail)) and head_type == "AU_Q0023"
     ]
 
@@ -125,7 +125,15 @@ def extract_entity_facts(
         for dis in result:
             for i in instance_sets:
                 instance_to_disease.append(
-                    (i[0], i[1], PROP_2_LABEL["AU_P0019"], "AU_P0019", dis, "AU_Q0013")
+                    (
+                        i[0],
+                        i[1],
+                        "NA",
+                        PROP_2_LABEL["AU_P0019"],
+                        "AU_P0019",
+                        dis,
+                        "AU_Q0013",
+                    )
                 )
 
     entity_facts.extend(patient_to_instance)
@@ -137,22 +145,24 @@ def extract_entity_facts(
 
 
 # =========================
-# 属性六元组
+# 属性七元组
 # =========================
 
 
 def _emit_fact(
     facts: List[TypedFact],
-    head,
+    head_id,
     head_type,
+    head_name,
     prop,
     value,
     tail_type,
 ):
     facts.append(
         (
-            head,
+            head_id,
             head_type,
+            head_name,
             PROP_2_LABEL[prop],
             prop,
             value,
@@ -176,6 +186,7 @@ def extract_attribute_facts(
     if not patient_id:
         return facts
 
+    patient_name = f"患者_{patient_id}"
     patient_type = patient_key
 
     # ---------- 病人属性 ----------
@@ -189,7 +200,9 @@ def extract_attribute_facts(
             continue
         val = record.get(prop)
         if val not in (None, ""):
-            _emit_fact(facts, patient_id, patient_type, prop, val, tail_type)
+            _emit_fact(
+                facts, patient_id, patient_type, patient_name, prop, val, tail_type
+            )
 
     # =========================================================
     # 任务（Task）
@@ -201,8 +214,10 @@ def extract_attribute_facts(
 
     task_type = task_key
 
+    prop = COLUMN_MAPPING["任务id"]
+    task_id = record.get(prop)
+
     task_props = [
-        ("任务id", "AU_Q0026"),
         ("任务类型", "AU_Q0038"),
     ]
 
@@ -212,7 +227,7 @@ def extract_attribute_facts(
             continue
         val = record.get(prop)
         if val not in (None, ""):
-            _emit_fact(facts, task_name, task_type, prop, val, tail_type)
+            _emit_fact(facts, task_id, task_type, task_name, prop, val, tail_type)
 
     # =========================================================
     # 任务实例（Task Instance）
@@ -226,6 +241,7 @@ def extract_attribute_facts(
         f"{patient_id}_{formatted_date}_{record.get(COLUMN_MAPPING['任务id'])}"
     )
     task_instance_type = "AU_Q0012"
+    task_instance_name = f"任务_{task_instance_id}"
 
     instance_props = [
         ("任务名称结果", "AU_Q0026"),
@@ -245,6 +261,7 @@ def extract_attribute_facts(
                 facts,
                 task_instance_id,
                 task_instance_type,
+                task_instance_name,
                 prop,
                 val,
                 tail_type,
@@ -255,6 +272,7 @@ def extract_attribute_facts(
     # =========================================================
     task_instance_set_id = f"{patient_id}_{formatted_date}"
     task_instance_set_type = "AU_Q0039"
+    task_instance_set_name = f"事件_{task_instance_set_id}"
 
     instance_set_props = [
         ("年龄", "AU_Q0036"),
@@ -272,6 +290,7 @@ def extract_attribute_facts(
                 facts,
                 task_instance_set_id,
                 task_instance_set_type,
+                task_instance_set_name,
                 prop,
                 val,
                 tail_type,

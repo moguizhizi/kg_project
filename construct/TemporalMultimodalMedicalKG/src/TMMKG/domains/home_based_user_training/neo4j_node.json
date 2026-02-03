@@ -15,6 +15,10 @@
         "AU_P0019": {
             "label": "Disease",
             "primary_key": "id"
+        },
+        "AU_Q0023": {
+            "label": "Game",
+            "primary_key": "id"
         }
     }
 }
