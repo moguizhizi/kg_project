@@ -3,12 +3,14 @@ import duckdb
 import pandas as pd
 from typing import Iterator, List, Optional
 from typing import Iterable
+from collections import defaultdict
 
 from TMMKG.domains.home_based_user_training.table_triple_extractor import (
     extract_facts_from_records,
 )
 from TMMKG.extractors.xlsx_loader import xlsx_to_records
 from TMMKG.meta_type import TypedFact
+from TMMKG.sql_templates import ATTRIBUTE_FACT_SQL
 
 
 def write_facts_jsonl(
@@ -56,6 +58,31 @@ def iter_duckdb_query_df(
         con.close()
 
 
+def attribute_df_to_entity_dict(df_chunk):
+    result = defaultdict(dict)
+    # 结构：result[head_type][head_id] = entity_dict
+
+    for _, row in df_chunk.iterrows():
+        head_type = row["head_type"]
+        head_id = row["head_id"]
+        name = row["head_name"]
+        prop = row["relation"]
+        value = row["tail"]
+
+        entity_map = result[head_type]
+
+        if head_id not in entity_map:
+            entity_map[head_id] = {"id": head_id}
+
+        entity_map[head_id][prop] = value
+        entity_map[head_id]["name"] = name
+
+    # 把内层 dict 转成 list
+    return {
+        head_type: list(entities.values()) for head_type, entities in result.items()
+    }
+
+
 def main():
     # xlsx_path = "/home/temp/dataset/temp.normalized.xlsx"
 
@@ -84,22 +111,31 @@ def main():
 
     path = "/home/temp/dataset/attribute_facts.jsonl"
 
-    query = f"""
-    SELECT
-        json_extract(json, '$[0]')        AS head,
-        json_extract_string(json, '$[1]') AS head_type,
-        json_extract_string(json, '$[2]') AS relation,
-        json_extract_string(json, '$[3]') AS prop,
-        json_extract(json, '$[4]')        AS tail,
-        json_extract_string(json, '$[5]') AS tail_type
-    FROM read_json_auto('{path}')
-    """
+    first = True
+
+    query = ATTRIBUTE_FACT_SQL.format(path=path)
 
     for df_chunk in iter_duckdb_query_df(
         query=query, batch_size=100, database="facts.duckdb"
     ):
         print(df_chunk.shape)
         print(df_chunk.columns.tolist())
+        # print(df_chunk.head(3).to_dict(orient="records"))
+
+        entity_dict = attribute_df_to_entity_dict(df_chunk)
+
+        if first:
+            with open(
+                "/home/temp/dataset/entity_dict_sample.json", "w", encoding="utf-8"
+            ) as f:
+                json.dump(entity_dict, f, ensure_ascii=False, indent=2)
+
+            print("已保存第一个 entity_dict 到 entity_dict_sample.json")
+        first = False
+
+        # 调试看看
+        for k, v in entity_dict.items():
+            print(k, v[:2])  # 每个类型看前两个
 
 
 if __name__ == "__main__":
