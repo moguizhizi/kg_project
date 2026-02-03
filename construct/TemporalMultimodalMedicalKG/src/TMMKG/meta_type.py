@@ -2,8 +2,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass
 
 TypedFact = Tuple[
-    Any,  # head
+    Any,  # head_id
     str,  # head_entity_type (AU_Qxxx)
+    Any,  # head_name
     str,  # relation (AU_Pxxx)
     str,  # prop / role / slot（可选语义位）
     Any,  # tail
