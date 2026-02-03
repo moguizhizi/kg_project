@@ -5,6 +5,8 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
+from dataclasses import dataclass
+
 import logging
 
 from TMMKG.extractors.xlsx_loader import xlsx_to_records
@@ -41,19 +43,36 @@ TypedFact = Tuple[
 EntityKey = Tuple[Any, Any]  # entity, entity_type
 
 
+@dataclass
+class FactBundle:
+    attribute_facts: List[TypedFact]
+    entity_facts: List[TypedFact]
+    all_facts: List[TypedFact]
+
+
 # =========================
 # 顶层入口
 # =========================
 def extract_facts_from_records(
     records: List[Dict[str, Any]],
-) -> List[TypedFact]:
-    all_facts = []
-    for record in records:
-        attribute_facts = extract_attribute_facts(record)
-        all_facts.extend(attribute_facts)
-        all_facts.extend(extract_entity_facts(record, attribute_facts))
+) -> FactBundle:
+    attribute_facts: List[TypedFact] = []
+    entity_facts: List[TypedFact] = []
 
-    return all_facts
+    for record in records:
+        attrs = extract_attribute_facts(record)
+        attribute_facts.extend(attrs)
+
+        ents = extract_entity_facts(record, attrs)
+        entity_facts.extend(ents)
+
+    all_facts = attribute_facts + entity_facts
+
+    return FactBundle(
+        attribute_facts=attribute_facts,
+        entity_facts=entity_facts,
+        all_facts=all_facts,
+    )
 
 
 # =========================
@@ -290,8 +309,14 @@ def main():
     logger.info(f"Loaded {len(records)} records")
 
     # ======== 正式抽取（统一入口） ========
-    all_facts = extract_facts_from_records(records)
-    logger.info(f"Total facts extracted: {len(all_facts)}")
+    fact_bundle = extract_facts_from_records(records)
+
+    logger.info(
+        "Facts extracted | attribute=%d, entity=%d, total=%d",
+        len(fact_bundle.attribute_facts),
+        len(fact_bundle.entity_facts),
+        len(fact_bundle.all_facts),
+    )
 
     # ======== Sanity check：仅打印前几条 record ========
     for idx, record in enumerate(records[:3]):
