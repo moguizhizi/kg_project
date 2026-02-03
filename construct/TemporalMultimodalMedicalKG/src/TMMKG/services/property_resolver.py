@@ -3,10 +3,10 @@
 import logging
 import os
 from typing import List
-from dataclasses import dataclass
 from qdrant_client import QdrantClient
 from dotenv import load_dotenv, find_dotenv
 
+from TMMKG.meta_type import PropertyCandidate
 from TMMKG.services.encoder.registry import get_text_encoder
 from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
@@ -21,17 +21,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _ = load_dotenv(find_dotenv())
-
-
-# -----------------------
-# PropertyCandidate
-# -----------------------
-@dataclass
-class PropertyCandidate:
-    property_id: str
-    alias_label: str
-    is_canonical: bool
-    score: float
 
 
 # -----------------------

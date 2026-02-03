@@ -2,7 +2,7 @@ import logging
 import os
 from qdrant_client import QdrantClient
 from typing import List
-from dataclasses import dataclass
+from TMMKG.meta_type import EntityTypeCandidate
 from TMMKG.services.encoder.registry import get_text_encoder
 from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
@@ -23,14 +23,6 @@ _ = load_dotenv(find_dotenv())
 # -----------------------
 # EntityTypeResolver
 # -----------------------
-
-
-@dataclass
-class EntityTypeCandidate:
-    entity_type_id: str
-    alias_label: str
-    is_canonical: bool
-    score: float
 
 
 class EntityTypeResolver:
