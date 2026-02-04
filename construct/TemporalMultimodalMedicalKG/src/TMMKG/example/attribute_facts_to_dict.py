@@ -26,7 +26,7 @@ def main():
 
     chunk_count = 0
     for df_chunk in iter_duckdb_query_df(
-        query=query, batch_size=100, database="facts.duckdb"
+        query=query, batch_size=100, database="attribute_facts.duckdb"
     ):
         chunk_count += 1
         logger.info(
