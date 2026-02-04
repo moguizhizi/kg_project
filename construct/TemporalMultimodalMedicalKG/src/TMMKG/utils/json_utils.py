@@ -81,38 +81,3 @@ def attribute_df_to_entity_dict(df_chunk):
     return {
         head_type: list(entities.values()) for head_type, entities in result.items()
     }
-
-
-def main():
-
-    path = "/home/temp/dataset/attribute_facts.jsonl"
-
-    first = True
-
-    query = ATTRIBUTE_FACT_SQL.format(path=path)
-
-    for df_chunk in iter_duckdb_query_df(
-        query=query, batch_size=100, database="facts.duckdb"
-    ):
-        print(df_chunk.shape)
-        print(df_chunk.columns.tolist())
-        # print(df_chunk.head(3).to_dict(orient="records"))
-
-        entity_dict = attribute_df_to_entity_dict(df_chunk)
-
-        if first:
-            with open(
-                "/home/temp/dataset/entity_dict_sample.json", "w", encoding="utf-8"
-            ) as f:
-                json.dump(entity_dict, f, ensure_ascii=False, indent=2)
-
-            print("已保存第一个 entity_dict 到 entity_dict_sample.json")
-        first = False
-
-        # 调试看看
-        for k, v in entity_dict.items():
-            print(k, v[:2])  # 每个类型看前两个
-
-
-if __name__ == "__main__":
-    main()
