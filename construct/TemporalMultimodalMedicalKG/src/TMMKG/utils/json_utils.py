@@ -84,30 +84,6 @@ def attribute_df_to_entity_dict(df_chunk):
 
 
 def main():
-    # xlsx_path = "/home/temp/dataset/temp.normalized.xlsx"
-
-    # records = xlsx_to_records(
-    #     path=xlsx_path,
-    #     sheet_name="records",
-    # )
-
-    # fact_bundle = extract_facts_from_records(records)
-
-    # write_facts_jsonl(
-    #     path="/home/temp/dataset/attribute_facts.jsonl",
-    #     facts=fact_bundle.attribute_facts,
-    # )
-
-    # write_facts_jsonl(
-    #     path="/home/temp/dataset/entity_facts.jsonl",
-    #     facts=fact_bundle.entity_facts,
-    # )
-
-    # print(
-    #     f"Wrote "
-    #     f"{len(fact_bundle.attribute_facts)} attribute facts and "
-    #     f"{len(fact_bundle.entity_facts)} entity facts"
-    # )
 
     path = "/home/temp/dataset/attribute_facts.jsonl"
 
