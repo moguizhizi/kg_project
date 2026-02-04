@@ -1,7 +1,7 @@
 import json
 import logging
 from TMMKG.sql_templates import ATTRIBUTE_FACT_SQL
-from TMMKG.utils.json_utils import attribute_df_to_entity_dict, iter_duckdb_query_df
+from TMMKG.utils.json_utils import attribute_df_to_dict, iter_duckdb_query_df
 import os
 
 logging.basicConfig(
@@ -34,16 +34,16 @@ def main():
             f"and columns {df_chunk.columns.tolist()}"
         )
 
-        entity_dict = attribute_df_to_entity_dict(df_chunk)
+        attribute_dict = attribute_df_to_dict(df_chunk)
 
         if first:
             with open(sample_json_path, "w", encoding="utf-8") as f:
-                json.dump(entity_dict, f, ensure_ascii=False, indent=2)
+                json.dump(attribute_dict, f, ensure_ascii=False, indent=2)
             logger.info(f"Saved the first entity_dict sample to {sample_json_path}")
             first = False
 
         # 调试前两个实体
-        for k, v in entity_dict.items():
+        for k, v in attribute_dict.items():
             logger.debug(f"{k}: {v[:2]}")  # 每个类型看前两个实体
 
     logger.info(f"Finished processing {chunk_count} chunks from attribute facts.")

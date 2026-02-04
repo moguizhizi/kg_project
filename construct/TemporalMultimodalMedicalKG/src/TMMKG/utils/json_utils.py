@@ -11,6 +11,7 @@ from TMMKG.domains.home_based_user_training.table_triple_extractor import (
 from TMMKG.extractors.xlsx_loader import xlsx_to_records
 from TMMKG.meta_type import TypedFact
 from TMMKG.sql_templates import ATTRIBUTE_FACT_SQL
+from typing import Dict, List, Tuple
 
 
 def write_facts_jsonl(
@@ -58,7 +59,7 @@ def iter_duckdb_query_df(
         con.close()
 
 
-def attribute_df_to_entity_dict(df_chunk):
+def attribute_df_to_dict(df_chunk):
     result = defaultdict(dict)
     # 结构：result[head_type][head_id] = entity_dict
 
@@ -81,3 +82,47 @@ def attribute_df_to_entity_dict(df_chunk):
     return {
         head_type: list(entities.values()) for head_type, entities in result.items()
     }
+
+
+# =========================
+# chunk 内分组逻辑
+# =========================
+
+
+def entity_df_to_dict(df_chunk) -> Dict[Tuple[str, str, str], List[dict]]:
+    """
+    将一个 df_chunk 按 (head_type, prop, tail_type) 分组
+
+    返回结构：
+    {
+        (head_type, prop, tail_type): [
+            {
+                h_id, h_type, h_name,
+                r_name,
+                t_id, t_type
+            },
+            ...
+        ]
+    }
+    """
+    groups = defaultdict(list)
+
+    for _, row in df_chunk.iterrows():
+        # 过滤不需要的属性
+        if row["prop"] == "AU_P0019":
+            continue
+
+        key = (row["head_type"], row["prop"], row["tail_type"])
+
+        groups[key].append(
+            {
+                "h_id": row["head_id"],
+                "h_type": row["head_type"],
+                "h_name": row["head_name"],
+                "r_name": row["relation"],
+                "t_id": row["tail"],
+                "t_type": row["tail_type"],
+            }
+        )
+
+    return groups
