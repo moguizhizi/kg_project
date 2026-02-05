@@ -5,9 +5,6 @@ from typing import Iterator, List, Optional
 from typing import Iterable
 from collections import defaultdict
 
-from TMMKG.domains.home_based_user_training.table_triple_extractor import (
-    extract_facts_from_records,
-)
 from TMMKG.extractors.xlsx_loader import xlsx_to_records
 from TMMKG.meta_type import TypedFact
 from TMMKG.sql_templates import ATTRIBUTE_FACT_SQL

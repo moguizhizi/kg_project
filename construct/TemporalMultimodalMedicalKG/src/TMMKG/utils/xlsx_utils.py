@@ -2,6 +2,10 @@
 
 import json
 import os
+import pandas as pd
+import zipfile
+from xml.etree import ElementTree
+from typing import List
 from pathlib import Path
 from typing import Dict
 
@@ -52,6 +56,58 @@ def build_column_mapping(
                 )
 
     return column_mapping
+
+
+def load_unique_column(
+    path: str, sheet_name: str, column_name: str, as_list: bool = False
+) -> pd.DataFrame | List:
+    """
+    读取 XLSX 文件中指定列，去空、去重，并返回整理后的结果。
+
+    参数:
+        path: Excel 文件路径
+        sheet_name: 需要读取的 sheet 名
+        column_name: 指定列名
+        as_list: 是否返回列表 (默认 False 返回 DataFrame)
+
+    返回:
+        去空、去重后的 DataFrame 或列表
+    """
+    # 只读取指定列
+    df = pd.read_excel(
+        path, sheet_name=sheet_name, usecols=[column_name], engine="openpyxl"
+    )
+
+    # 去掉空值
+    df = df.dropna(subset=[column_name])
+
+    # 去重
+    df = df.drop_duplicates(subset=[column_name])
+
+    # 重置索引
+    df = df.reset_index(drop=True)
+
+    if as_list:
+        return df[column_name].tolist()
+    return df
+
+
+def get_xlsx_sheetnames(xlsx_path: str) -> List[str]:
+    """
+    快速获取 XLSX 文件的所有 sheet 名，不读取数据
+
+    参数:
+        xlsx_path: Excel 文件路径
+
+    返回:
+        List[str]: sheet 名列表
+    """
+    with zipfile.ZipFile(xlsx_path) as z:
+        wb_xml = z.read("xl/workbook.xml")
+        root = ElementTree.fromstring(wb_xml)
+        ns = {"ns": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        sheet_names = [s.attrib["name"] for s in root.findall(".//ns:sheet", ns)]
+    return sheet_names
 
 
 # =========================
