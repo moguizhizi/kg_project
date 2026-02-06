@@ -29,6 +29,9 @@ _ = load_dotenv(find_dotenv())
 # -----------------------
 def main():
 
+    # -----------------------
+    # 1. init entity type
+    # -----------------------
     resolver = init_entity_type_resolver(
         model_name="Qwen3-Embedding-8B",
         base_collection="entity_type_aliases",
@@ -37,18 +40,18 @@ def main():
     )
 
     # -----------------------
-    # 4. test input
+    # 2. test input
     # -----------------------
     text = "药物"
     logger.info(f"Resolving entity type for text: '{text}'")
 
     # -----------------------
-    # 5. resolve
+    # 3. resolve
     # -----------------------
     candidates = resolver.resolve(text, top_k=5)
 
     # -----------------------
-    # 6. output
+    # 4. output
     # -----------------------
     if not candidates:
         logger.info("No candidates found")
