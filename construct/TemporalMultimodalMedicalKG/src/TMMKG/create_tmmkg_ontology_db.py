@@ -453,7 +453,7 @@ def create_indexes(db):
     logger.info("All indexes created successfully")
 
 
-def create_wikidata_ontology_database(
+def create_tmmkg_ontology_database(
     mongo_uri: str = "mongodb://localhost:27017/?directConnection=true",
     database: str = "tmmkg_ontology",
     qdrant_uri: str = "http://localhost:6333",
@@ -661,7 +661,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    create_wikidata_ontology_database(
+    create_tmmkg_ontology_database(
         mongo_uri=args.mongo_uri,
         database=args.database,
         qdrant_uri=args.qdrant_uri,
