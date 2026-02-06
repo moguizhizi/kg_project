@@ -4,7 +4,7 @@ import logging
 from qdrant_client import QdrantClient
 
 from TMMKG.services.encoder.registry import get_text_encoder
-from TMMKG.services.entity_resolver import EntityResolver
+from TMMKG.services.entity_resolver import EntityResolver, init_entity_resolver
 from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
 from dotenv import load_dotenv, find_dotenv
@@ -20,48 +20,13 @@ _ = load_dotenv(find_dotenv())
 
 
 def main():
-    logger.info("Starting EntityResolver demo")
 
-    # -----------------------
-    # 1. init encoder
-    # -----------------------
-    encoder, embed_dim = get_text_encoder(
-        "Qwen3-Embedding-8B",
-        model_root=os.getenv("LLM_ROOT"),
+    resolver = init_entity_resolver(
+        model_name="Qwen3-Embedding-8B",
+        base_collection="entity_aliases",
+        qdrant_url="http://localhost:6333",
+        score_threshold=0.85,
     )
-
-    logger.info(f"TextEncoder initialized (dim={embed_dim})")
-
-    # -----------------------
-    # 2. init vector store
-    # -----------------------
-    base_collection = "entity_aliases"
-
-    physical_collection = build_collection_name(
-        base_collection,
-        encoder,
-    )
-
-    qdrant_client = QdrantClient(url="http://localhost:6333")
-
-    vector_store = QdrantVectorStore(
-        collection_name=physical_collection,
-        vector_size=embed_dim,
-        client=qdrant_client,
-    )
-
-    logger.info(f"QdrantVectorStore initialized: {physical_collection}")
-
-    # -----------------------
-    # 3. init resolver
-    # -----------------------
-    resolver = EntityResolver(
-        vector_store=vector_store,
-        encoder=encoder,
-        score_threshold=0.75,
-    )
-
-    logger.info("EntityResolver initialized")
 
     # -----------------------
     # 4. test input
