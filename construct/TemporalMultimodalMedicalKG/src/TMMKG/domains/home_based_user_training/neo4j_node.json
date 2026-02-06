@@ -19,6 +19,14 @@
         "AU_Q0023": {
             "label": "Game",
             "primary_key": "id"
+        },
+        "AU_P0062": {
+            "label": "Symptom",
+            "primary_key": "id"
+        },
+        "AU_P0063": {
+            "label": "Unknown",
+            "primary_key": "id"
         }
     }
 }
