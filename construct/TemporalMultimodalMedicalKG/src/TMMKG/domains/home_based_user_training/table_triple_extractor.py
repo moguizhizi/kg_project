@@ -58,7 +58,7 @@ def extract_facts_from_records(
 
 
 # =========================
-# 实体六元组
+# 实体七元组
 # =========================
 
 
@@ -81,6 +81,7 @@ def extract_entity_facts(
     patients: Set[Tuple[Any, str]] = set()
     instance_sets: Set[Tuple[str, str]] = set()
     task_instances: Set[Tuple[str, str]] = set()
+    game_instances: Set[Tuple[str, str]] = set()
 
     for head, head_type, _, _, _, _, _ in attribute_facts:
         # 病人
@@ -92,6 +93,9 @@ def extract_entity_facts(
         # 任务事例
         elif head_type == "AU_Q0012":
             task_instances.add((head, head_type))
+        # 游戏事例·
+        elif head_type == "AU_Q0023":
+            game_instances.add((head, head_type))
 
     # 构建实体层级关系
     # 病人 -> 实例集合
@@ -188,6 +192,7 @@ def extract_attribute_facts(
 
     patient_name = f"患者_{patient_id}"
     patient_type = patient_key
+    patient_id = str(int(patient_id))
 
     # ---------- 病人属性 ----------
     patient_props = [
@@ -215,7 +220,7 @@ def extract_attribute_facts(
     task_type = task_key
 
     prop = COLUMN_MAPPING["任务id"]
-    task_id = record.get(prop)
+    task_id = str(int(record.get(prop)))
 
     task_props = [
         ("任务类型", "AU_Q0038"),
