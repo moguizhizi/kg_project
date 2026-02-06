@@ -41,12 +41,14 @@ def main():
     write_facts_jsonl(
         path=attr_facts_path,
         facts=fact_bundle.attribute_facts,
+        mode="overwrite",
     )
 
     logger.info(f"Writing entity facts to {entity_facts_path}")
     write_facts_jsonl(
         path=entity_facts_path,
         facts=fact_bundle.entity_facts,
+        mode="overwrite",
     )
 
     logger.info("Fact extraction and export completed successfully.")
