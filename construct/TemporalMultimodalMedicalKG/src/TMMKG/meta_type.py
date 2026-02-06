@@ -33,6 +33,13 @@ class UnknownEntity(BaseModel):
     unknown_id: str
     label: str
 
+class EntityCandidate(BaseModel):
+    entity_id: str
+    entity_type: str
+    alias_label: str
+    is_canonical: bool
+    score: float
+
 
 @dataclass
 class FactBundle:
