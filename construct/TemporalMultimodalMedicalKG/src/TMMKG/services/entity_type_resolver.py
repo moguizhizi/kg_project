@@ -76,3 +76,65 @@ class EntityTypeResolver:
             )
 
         return results
+
+
+import os
+import logging
+from qdrant_client import QdrantClient
+
+logger = logging.getLogger(__name__)
+
+
+def init_entity_type_resolver(
+    model_name: str = "Qwen3-Embedding-8B",
+    base_collection: str = "entity_type_aliases",
+    qdrant_url: str = "http://localhost:6333",
+    score_threshold: float = 0.75,
+) -> EntityTypeResolver:
+    """
+    初始化 EntityTypeResolver 对象（带向量存储和文本编码器）。
+
+    Args:
+        model_name (str): 文本编码器模型名称
+        base_collection (str): Qdrant collection 基础名
+        qdrant_url (str): Qdrant 服务地址
+        score_threshold (float): 相似度阈值
+
+    Returns:
+        EntityTypeResolver: 可直接用于实体类型解析
+    """
+
+    logger.info("Starting EntityTypeResolver initialization")
+
+    # -----------------------
+    # 1. 初始化文本编码器
+    # -----------------------
+    encoder, embed_dim = get_text_encoder(
+        model_name,
+        model_root=os.getenv("LLM_ROOT"),
+    )
+    logger.info(f"TextEncoder initialized (dim={embed_dim})")
+
+    # -----------------------
+    # 2. 初始化向量存储
+    # -----------------------
+    physical_collection = build_collection_name(base_collection, encoder)
+    qdrant_client = QdrantClient(url=qdrant_url)
+    vector_store = QdrantVectorStore(
+        collection_name=physical_collection,
+        vector_size=embed_dim,
+        client=qdrant_client,
+    )
+    logger.info(f"QdrantVectorStore initialized: {physical_collection}")
+
+    # -----------------------
+    # 3. 初始化解析器
+    # -----------------------
+    resolver = EntityTypeResolver(
+        vector_store=vector_store,
+        encoder=encoder,
+        score_threshold=score_threshold,
+    )
+    logger.info("EntityTypeResolver initialized successfully ✅")
+
+    return resolver
