@@ -39,3 +39,10 @@ MERGE (h:`{h_label}` {{id: row.h_id}})
 MERGE (t:`{t_label}` {{id: row.t_id}})
 MERGE (h)-[r:`{r_name}`]->(t)
 """
+
+CREATE_CONSTRAINT_CYPHER = """
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (n:{label})
+REQUIRE n.{pk} IS UNIQUE
+"""
+
