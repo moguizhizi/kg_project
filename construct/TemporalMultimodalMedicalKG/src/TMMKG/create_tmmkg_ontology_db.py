@@ -524,14 +524,28 @@ def create_tmmkg_ontology_database(
     qdrant = QdrantConnection(qdrant_uri)
     qdrant_client = qdrant.connect()
 
-    # Drop all existing collections
+    # Drop specified collections only
     if drop_collections:
-        logger.info("Dropping existing collections...")
-        for collection_name in db.list_collection_names():
-            logger.info(f"Dropping collection: {collection_name}")
-            db.drop_collection(collection_name)
-        logger.info("Successfully dropped all existing collections")
+        logger.info("Dropping specified collections...")
 
+        collections_to_drop = [
+            entity_types_collection,
+            entity_type_aliases_collection,
+            enum_entity_type_collection,
+            properties_collection,
+            property_aliases_collection
+        ]
+
+        existing = set(db.list_collection_names())
+
+        for collection_name in collections_to_drop:
+            if collection_name in existing:
+                logger.info(f"Dropping collection: {collection_name}")
+                db.drop_collection(collection_name)
+            else:
+                logger.info(f"Collection not found, skip: {collection_name}")
+
+        logger.info("Finished dropping specified collections.")
     # Populate collections
     populate_entity_types(
         ENTITY_TYPE_2_LABEL,
