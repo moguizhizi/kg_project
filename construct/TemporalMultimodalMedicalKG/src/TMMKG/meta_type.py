@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass
 
+from pydantic import BaseModel
+
 TypedFact = Tuple[
     Any,  # head_id
     str,  # head_entity_type (AU_Qxxx)
@@ -12,6 +14,24 @@ TypedFact = Tuple[
 ]
 
 EntityKey = Tuple[Any, Any]  # entity, entity_type
+
+
+class DiseaseEntity(BaseModel):
+    _id: int
+    disease_id: str
+    label: str
+
+
+class SymptomEntity(BaseModel):
+    _id: int
+    symptom_id: str
+    label: str
+
+
+class UnknownEntity(BaseModel):
+    _id: int
+    unknown_id: str
+    label: str
 
 
 @dataclass
