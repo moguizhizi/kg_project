@@ -481,5 +481,21 @@
         "Value-type constraint": [
             "AU_Q0026"
         ]
+    },
+    "AU_P0062": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0040"
+        ]
+    },
+    "AU_P0063": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0041"
+        ]
     }
 }
