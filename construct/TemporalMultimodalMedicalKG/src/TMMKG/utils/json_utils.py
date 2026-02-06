@@ -1,7 +1,8 @@
 import json
 import duckdb
 import pandas as pd
-from typing import Iterator, List, Optional
+import os
+from typing import Iterator, List, Literal, Optional
 from typing import Iterable
 from collections import defaultdict
 
@@ -13,9 +14,12 @@ from typing import Dict, List, Tuple
 
 def write_facts_jsonl(
     path: str,
-    facts: Iterable[TypedFact],
+    facts: Iterable,
+    mode: Literal["append", "overwrite"] = "append",
 ) -> None:
-    with open(path, "a", encoding="utf-8") as f:
+    file_mode = "a" if mode == "append" else "w"
+
+    with open(path, file_mode, encoding="utf-8") as f:
         for fact in facts:
             # tuple → list，JSON 友好
             f.write(json.dumps(list(fact), ensure_ascii=False))
@@ -40,6 +44,11 @@ def iter_duckdb_query_df(
     返回:
         Iterator[pd.DataFrame]
     """
+
+    # 如果是磁盘数据库且存在，则删除
+    if database != ":memory:" and os.path.exists(database):
+        os.remove(database)
+
     con = duckdb.connect(database=database)
     cursor = con.execute(query)
 
@@ -106,7 +115,11 @@ def entity_df_to_dict(df_chunk) -> Dict[Tuple[str, str, str], List[dict]]:
 
     for _, row in df_chunk.iterrows():
         # 过滤不需要的属性
-        if row["prop"] == "AU_P0019":
+        if (
+            row["prop"] == "AU_P0019"
+            # or row["prop"] == "AU_P0057"
+            # or row["prop"] == "AU_P0058"
+        ):
             continue
 
         key = (row["head_type"], row["prop"], row["tail_type"])
