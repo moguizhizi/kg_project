@@ -116,10 +116,10 @@ def extract_entity_facts(
 
     # 任务事例 -> 任务
     task_instance_to_task = [
-        (t[0], t[1], "NA", PROP_2_LABEL["AU_P0056"], "AU_P0056", head_name, head_type)
+        (t[0], t[1], "NA", PROP_2_LABEL["AU_P0056"], "AU_P0056", g[0], g[1])
         for t in task_instances
-        for head, head_type, head_name, rel_label, prop, tail, tail_type in attribute_facts
-        if str(t[0]).endswith(str(tail)) and head_type == "AU_Q0023"
+        for g in game_instances
+        if str(t[0]).endswith(str(g[0]))  # 55_20211231_33 的结尾是 33
     ]
 
     instance_to_disease = []
