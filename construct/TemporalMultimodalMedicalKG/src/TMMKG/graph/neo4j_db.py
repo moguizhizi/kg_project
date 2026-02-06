@@ -5,6 +5,7 @@ from pathlib import Path
 from neo4j import GraphDatabase
 
 from TMMKG.infra.neo4j_db import create_neo4j_driver
+from TMMKG.sql_templates import CREATE_CONSTRAINT_CYPHER
 
 SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
@@ -31,12 +32,7 @@ def get_node_schema(entity_type: str) -> tuple[str, str]:
 def build_unique_constraint_cypher(entity_type: str) -> str:
     label, pk = get_node_schema(entity_type)
 
-    return f"""
-    CREATE CONSTRAINT IF NOT EXISTS
-    FOR (n:{label})
-    REQUIRE n.{pk} IS UNIQUE
-    """
-
+    return CREATE_CONSTRAINT_CYPHER.format(label=label, pk=pk)
 
 def build_merge_node_cypher(
     entity_type: str,
@@ -91,7 +87,7 @@ def main():
             session.run(cypher)
             print(f"Constraint created for {entity_type}")
 
-            session.run(cypher_1, params_1)
+            # session.run(cypher_1, params_1)
 
     driver.close()
 
