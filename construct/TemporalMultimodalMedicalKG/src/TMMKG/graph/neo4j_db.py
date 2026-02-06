@@ -2,10 +2,9 @@
 
 import json
 from pathlib import Path
-from neo4j import GraphDatabase
 
-from TMMKG.infra.neo4j_db import create_neo4j_driver
 from TMMKG.sql_templates import CREATE_CONSTRAINT_CYPHER
+
 
 SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
@@ -33,6 +32,7 @@ def build_unique_constraint_cypher(entity_type: str) -> str:
     label, pk = get_node_schema(entity_type)
 
     return CREATE_CONSTRAINT_CYPHER.format(label=label, pk=pk)
+
 
 def build_merge_node_cypher(
     entity_type: str,
@@ -72,25 +72,3 @@ cypher_1, params_1 = build_merge_node_cypher(
     entity_id=entity_id,
     properties=properties,
 )
-
-
-def main():
-    uri = "bolt://localhost:7687"
-    user = "neo4j"
-    password = "password"
-
-    driver = create_neo4j_driver(uri=uri, user=user, password=password)
-
-    with driver.session() as session:
-        for entity_type in ENTITY_TYPE_MAP.keys():
-            cypher = build_unique_constraint_cypher(entity_type)
-            session.run(cypher)
-            print(f"Constraint created for {entity_type}")
-
-            # session.run(cypher_1, params_1)
-
-    driver.close()
-
-
-if __name__ == "__main__":
-    main()
