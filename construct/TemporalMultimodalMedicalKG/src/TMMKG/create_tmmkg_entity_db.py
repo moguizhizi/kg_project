@@ -1,3 +1,4 @@
+import uuid
 from pymongo.mongo_client import MongoClient
 from pymongo.operations import SearchIndexModel
 
@@ -101,148 +102,6 @@ def populate_symptom_entity(
     logger.info(f"Successfully populated {collection_name} with {len(records)} records")
 
 
-def populate_disease_aliases(
-    DISEASE_2_LABEL,
-    DISEASE_2_ALIASES,
-    qdrant_client,
-    collection_name: str = "disease_aliases_entity",
-):
-    logger.info(f"Starting to populate Qdrant collection: {collection_name}")
-
-    qdrant = QdrantVectorStore(
-        collection_name=collection_name,
-        vector_size=embed_dim,
-        client=qdrant_client,
-    )
-
-    points = []
-    point_id = 0
-
-    # 遍历 LABEL，而不是 aliases
-    for disease_id, label in tqdm(DISEASE_2_LABEL.items()):
-
-        # ===== canonical =====
-        embedding = encoder.encode(label)
-
-        points.append(
-            PointStruct(
-                id=point_id,
-                vector=embedding,
-                payload={
-                    "disease_id": disease_id,
-                    "alias_label": label,
-                    "is_canonical": True,
-                },
-            )
-        )
-        point_id += 1
-
-        # ===== aliases（可能不存在）=====
-        aliases = DISEASE_2_ALIASES.get(disease_id, [])
-
-        for alias in aliases:
-            if not alias or alias == label:
-                continue  # 防止空值和重复
-
-            embedding = encoder.encode(alias)
-
-            points.append(
-                PointStruct(
-                    id=point_id,
-                    vector=embedding,
-                    payload={
-                        "disease_id": disease_id,
-                        "alias_label": alias,
-                        "is_canonical": False,
-                    },
-                )
-            )
-            point_id += 1
-
-    # ===== upsert =====
-    qdrant.upsert(
-        ids=[p.id for p in points],
-        vectors=[p.vector for p in points],
-        payloads=[p.payload for p in points],
-    )
-
-    logger.info(
-        f"Successfully populated Qdrant collection "
-        f"{collection_name} with {len(points)} points"
-    )
-
-
-def populate_symptom_aliases(
-    SYMPTOM_2_LABEL,
-    SYMPTOM_2_ALIASES,
-    qdrant_client,
-    collection_name: str = "symptom_aliases_entity",
-):
-    logger.info(f"Starting to populate Qdrant collection: {collection_name}")
-
-    qdrant = QdrantVectorStore(
-        collection_name=collection_name,
-        vector_size=embed_dim,
-        client=qdrant_client,
-    )
-
-    points = []
-    point_id = 0
-
-    # 遍历 LABEL，而不是 aliases
-    for symptom_id, label in tqdm(SYMPTOM_2_LABEL.items()):
-
-        # ===== canonical =====
-        embedding = encoder.encode(label)
-
-        points.append(
-            PointStruct(
-                id=point_id,
-                vector=embedding,
-                payload={
-                    "symptom_id": symptom_id,
-                    "alias_label": label,
-                    "is_canonical": True,
-                },
-            )
-        )
-        point_id += 1
-
-        # ===== aliases（可能不存在）=====
-        aliases = SYMPTOM_2_ALIASES.get(symptom_id, [])
-
-        for alias in aliases:
-            if not alias or alias == label:
-                continue  # 防止空值和重复
-
-            embedding = encoder.encode(alias)
-
-            points.append(
-                PointStruct(
-                    id=point_id,
-                    vector=embedding,
-                    payload={
-                        "symptom_id": symptom_id,
-                        "alias_label": alias,
-                        "is_canonical": False,
-                    },
-                )
-            )
-            point_id += 1
-
-    # ===== upsert =====
-    qdrant.upsert(
-        ids=[p.id for p in points],
-        vectors=[p.vector for p in points],
-        payloads=[p.payload for p in points],
-    )
-
-    logger.info(
-        f"Successfully populated Qdrant collection "
-        f"{collection_name} with {len(points)} points"
-    )
-
-
 def populate_unknown_entity(
     UNKNOWN_2_LABEL,
     db,
@@ -274,13 +133,17 @@ def populate_unknown_entity(
     logger.info(f"Successfully populated {collection_name} with {len(records)} records")
 
 
-def populate_unknown_aliases(
+def populate_entity_aliases(
+    DISEASE_2_LABEL,
+    DISEASE_2_ALIASES,
+    SYMPTOM_2_LABEL,
+    SYMPTOM_2_ALIASES,
     UNKNOWN_2_LABEL,
     UNKNOWN_2_ALIASES,
     qdrant_client,
-    collection_name: str = "unknown_aliases_entity",
+    collection_name: str = "entity_aliases",
 ):
-    logger.info(f"Starting to populate Qdrant collection: {collection_name}")
+    logger.info(f"Starting to populate unified Qdrant collection: {collection_name}")
 
     qdrant = QdrantVectorStore(
         collection_name=collection_name,
@@ -291,70 +154,72 @@ def populate_unknown_aliases(
     points = []
     point_id = 0
 
-    # 遍历 LABEL，而不是 aliases
-    for unknown_id, label in tqdm(UNKNOWN_2_LABEL.items()):
+    def add_entity(label_map, alias_map, entity_type):
+        nonlocal point_id
 
-        # ===== canonical =====
-        embedding = encoder.encode(label)
+        for entity_id, label in tqdm(label_map.items(), desc=entity_type):
 
-        points.append(
-            PointStruct(
-                id=point_id,
-                vector=embedding,
-                payload={
-                    "unknown_id": unknown_id,
-                    "alias_label": label,
-                    "is_canonical": True,
-                },
-            )
-        )
-        point_id += 1
-
-        # ===== aliases（可能不存在）=====
-        aliases = UNKNOWN_2_ALIASES.get(unknown_id, [])
-
-        for alias in aliases:
-            if not alias or alias == label:
-                continue  # 防止空值和重复
-
-            embedding = encoder.encode(alias)
+            # canonical
+            embedding = encoder.encode(label)
 
             points.append(
                 PointStruct(
-                    id=point_id,
+                    id=str(uuid.uuid4()),  #
                     vector=embedding,
                     payload={
-                        "unknown_id": unknown_id,
-                        "alias_label": alias,
-                        "is_canonical": False,
+                        "entity_type": entity_type,
+                        "entity_id": entity_id,
+                        "alias_label": label,
+                        "is_canonical": True,
                     },
                 )
             )
-            point_id += 1
 
-    # ===== upsert =====
+            # aliases
+            aliases = alias_map.get(entity_id, [])
+
+            for alias in aliases:
+                if not alias or alias == label:
+                    continue
+
+                embedding = encoder.encode(alias)
+
+                points.append(
+                    PointStruct(
+                        id=str(uuid.uuid4()),
+                        vector=embedding,
+                        payload={
+                            "entity_type": entity_type,
+                            "entity_id": entity_id,
+                            "alias_label": alias,
+                            "is_canonical": False,
+                        },
+                    ),
+                )
+
+    # 三类实体一次写完
+    add_entity(DISEASE_2_LABEL, DISEASE_2_ALIASES, "disease")
+    add_entity(SYMPTOM_2_LABEL, SYMPTOM_2_ALIASES, "symptom")
+    add_entity(UNKNOWN_2_LABEL, UNKNOWN_2_ALIASES, "unknown")
+
+    # upsert
     qdrant.upsert(
         ids=[p.id for p in points],
         vectors=[p.vector for p in points],
         payloads=[p.payload for p in points],
     )
 
-    logger.info(
-        f"Successfully populated Qdrant collection "
-        f"{collection_name} with {len(points)} points"
-    )
+    logger.info(f"Inserted {len(points)} alias vectors into {collection_name}")
 
 
 def create_tmmkg_entity_database(
     mongo_uri: str = "mongodb://localhost:27017/?directConnection=true",
-    database: str = "tmmkg_ontology",
+    database: str = "tmmkg_entity",
     qdrant_uri: str = "http://localhost:6333",
     disease_collection: str = "disease_entity",
-    disease_aliases_collection: str = "disease_aliases_entity",
     symptom_collection: str = "symptom_entity",
-    symptom_aliases_collection: str = "symptom_aliases_entity",
     unknown_collection: str = "unknown_entity",
-    unknown_aliases_collection: str = "unknown_aliases_entity",
+    entity_aliases_collection: str = "entity_aliases",
     drop_collections: bool = True,
 ):
     """
@@ -393,10 +258,10 @@ def create_tmmkg_entity_database(
     with open(os.path.join(MAPPINGS_DIR, "symptom2aliases.json"), "r") as f:
         SYMPTOM_2_ALIASES = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "unkown2label.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "unknown2label.json"), "r") as f:
         UNKNOWN_2_LABEL = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "unkown2aliases.json"), "r") as f:
+    with open(os.path.join(MAPPINGS_DIR, "unknown2aliases.json"), "r") as f:
         UNKNOWN_2_ALIASES = json.load(f)
 
     logger.info("Successfully loaded all mapping files")
@@ -415,11 +280,9 @@ def create_tmmkg_entity_database(
 
         collections_to_drop = [
             disease_collection,
-            disease_aliases_collection,
             symptom_collection,
-            symptom_aliases_collection,
             unknown_collection,
-            unknown_aliases_collection,
+            entity_aliases_collection,
         ]
 
         existing = set(db.list_collection_names())
@@ -435,9 +298,10 @@ def create_tmmkg_entity_database(
 
     if drop_collections:
         for col in [
-            disease_aliases_collection,
-            symptom_aliases_collection,
-            unknown_aliases_collection,
+            disease_collection,
+            symptom_collection,
+            unknown_collection,
+            entity_aliases_collection,
         ]:
             if qdrant_client.collection_exists(col):
                 logger.info(f"Dropping Qdrant collection: {col}")
@@ -450,24 +314,10 @@ def create_tmmkg_entity_database(
         collection_name=disease_collection,
     )
 
-    populate_disease_aliases(
-        DISEASE_2_LABEL,
-        DISEASE_2_ALIASES,
-        qdrant_client,
-        collection_name=disease_aliases_collection,
-    )
-
     populate_symptom_entity(
         SYMPTOM_2_LABEL,
         db,
         collection_name=symptom_collection,
-    )
-
-    populate_symptom_aliases(
-        SYMPTOM_2_LABEL,
-        SYMPTOM_2_ALIASES,
-        qdrant_client,
-        collection_name=symptom_aliases_collection,
     )
 
     populate_unknown_entity(
@@ -476,11 +326,15 @@ def create_tmmkg_entity_database(
         collection_name=unknown_collection,
     )
 
-    populate_unknown_aliases(
+    populate_entity_aliases(
+        DISEASE_2_LABEL,
+        DISEASE_2_ALIASES,
+        SYMPTOM_2_LABEL,
+        SYMPTOM_2_ALIASES,
         UNKNOWN_2_LABEL,
         UNKNOWN_2_ALIASES,
         qdrant_client,
-        collection_name=unknown_aliases_collection,
+        collection_name=entity_aliases_collection,
     )
 
     logger.info("Database population process completed")
@@ -508,7 +362,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--database",
         type=str,
-        default="tmmkg_ontology",
+        default="tmmkg_entity",
         help="MongoDB database name",
     )
     parser.add_argument(
@@ -551,9 +405,9 @@ if __name__ == "__main__":
         help="Collection name for properties",
     )
     parser.add_argument(
-        "--unknown_aliases_collection",
+        "--entity_aliases_collection",
         type=str,
-        default="unknown_aliases_entity",
+        default="entity_aliases",
         help="Collection name for property aliases",
     )
 
@@ -563,9 +417,7 @@ if __name__ == "__main__":
         database=args.database,
         qdrant_uri=args.qdrant_uri,
         disease_collection=args.disease_collection,
-        disease_aliases_collection=args.disease_aliases_collection,
         symptom_collection=args.symptom_collection,
-        symptom_aliases_collection=args.symptom_aliases_collection,
         unknown_collection=args.unknown_collection,
-        unknown_aliases_collection=args.unknown_aliases_collection,
+        entity_aliases_collection=args.entity_aliases_collection,
     )
