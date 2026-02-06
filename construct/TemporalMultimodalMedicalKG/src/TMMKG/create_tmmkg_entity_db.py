@@ -274,6 +274,12 @@ def create_tmmkg_entity_database(
     qdrant = QdrantConnection(qdrant_uri)
     qdrant_client = qdrant.connect()
 
+    base_entity_aliases_collection = entity_aliases_collection
+
+    physical_entity_aliases_collection = build_collection_name(
+        base_entity_aliases_collection, encoder
+    )
+
     # Drop specified collections only
     if drop_collections:
         logger.info("Dropping specified collections...")
@@ -282,7 +288,7 @@ def create_tmmkg_entity_database(
             disease_collection,
             symptom_collection,
             unknown_collection,
-            entity_aliases_collection,
+            physical_entity_aliases_collection,
         ]
 
         existing = set(db.list_collection_names())
@@ -301,7 +307,7 @@ def create_tmmkg_entity_database(
             disease_collection,
             symptom_collection,
             unknown_collection,
-            entity_aliases_collection,
+            physical_entity_aliases_collection,
         ]:
             if qdrant_client.collection_exists(col):
                 logger.info(f"Dropping Qdrant collection: {col}")
@@ -334,7 +340,7 @@ def create_tmmkg_entity_database(
         UNKNOWN_2_LABEL,
         UNKNOWN_2_ALIASES,
         qdrant_client,
-        collection_name=entity_aliases_collection,
+        collection_name=physical_entity_aliases_collection,
     )
 
     logger.info("Database population process completed")
