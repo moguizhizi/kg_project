@@ -12,7 +12,7 @@
             "label": "TaskInstance",
             "primary_key": "id"
         },
-        "AU_P0019": {
+        "AU_Q0013": {
             "label": "Disease",
             "primary_key": "id"
         },
@@ -20,11 +20,11 @@
             "label": "Game",
             "primary_key": "id"
         },
-        "AU_P0062": {
+        "AU_Q0040": {
             "label": "Symptom",
             "primary_key": "id"
         },
-        "AU_P0063": {
+        "AU_Q0041": {
             "label": "Unknown",
             "primary_key": "id"
         }

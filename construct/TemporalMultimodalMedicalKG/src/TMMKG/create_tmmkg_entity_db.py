@@ -199,9 +199,6 @@ def populate_entity_aliases(
 
     # 三类实体一次写完
     add_entity(DISEASE_2_LABEL, DISEASE_2_ALIASES, "disease")
-    add_entity(SYMPTOM_2_LABEL, SYMPTOM_2_ALIASES, "symptom")
-    add_entity(UNKNOWN_2_LABEL, UNKNOWN_2_ALIASES, "unknown")
-
     # upsert
     qdrant.upsert(
         ids=[p.id for p in points],
@@ -209,7 +206,29 @@ def populate_entity_aliases(
         payloads=[p.payload for p in points],
     )
 
-    logger.info(f"Inserted {len(points)} alias vectors into {collection_name}")
+    logger.info(f"Inserted {len(points)} disease alias vectors into {collection_name}")
+
+    points.clear()
+    add_entity(SYMPTOM_2_LABEL, SYMPTOM_2_ALIASES, "symptom")
+    # upsert
+    qdrant.upsert(
+        ids=[p.id for p in points],
+        vectors=[p.vector for p in points],
+        payloads=[p.payload for p in points],
+    )
+
+    logger.info(f"Inserted {len(points)} symptom alias vectors into {collection_name}")
+
+    points.clear()
+    add_entity(UNKNOWN_2_LABEL, UNKNOWN_2_ALIASES, "unknown")
+    # upsert
+    qdrant.upsert(
+        ids=[p.id for p in points],
+        vectors=[p.vector for p in points],
+        payloads=[p.payload for p in points],
+    )
+
+    logger.info(f"Inserted {len(points)} unknown alias vectors into {collection_name}")
 
 
 def create_tmmkg_entity_database(
