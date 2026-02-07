@@ -2,24 +2,25 @@
 
 ATTRIBUTE_FACT_SQL = """
 SELECT
-    json_extract(json, '$[0]')        AS head_id,
+    json_extract_string(json, '$[0]') AS head_id,
     json_extract_string(json, '$[1]') AS head_type,
     json_extract_string(json, '$[2]') AS head_name,
     json_extract_string(json, '$[3]') AS relation,
     json_extract_string(json, '$[4]') AS prop,
-    json_extract(json, '$[5]')        AS tail,
+    json_extract_string(json, '$[5]') AS tail,
     json_extract_string(json, '$[6]') AS tail_type
 FROM read_json_auto('{path}')
 """
 
+
 ENTITY_FACT_SQL = """
 SELECT
-    json_extract(json, '$[0]')        AS head_id,
+    json_extract_string(json, '$[0]')        AS head_id,
     json_extract_string(json, '$[1]') AS head_type,
     json_extract_string(json, '$[2]') AS head_name,
     json_extract_string(json, '$[3]') AS relation,
     json_extract_string(json, '$[4]') AS prop,
-    json_extract(json, '$[5]')        AS tail,
+    json_extract_string(json, '$[5]')        AS tail,
     json_extract_string(json, '$[6]') AS tail_type
 FROM read_json_auto('{path}')
 """
@@ -45,4 +46,3 @@ CREATE CONSTRAINT IF NOT EXISTS
 FOR (n:{label})
 REQUIRE n.{pk} IS UNIQUE
 """
-

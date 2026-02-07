@@ -38,9 +38,9 @@ with open(os.path.join(MAPPINGS_DIR, "unknown2aliases.json"), "r") as f:
     UNKNOWN_2_ALIASES = json.load(f)
 
 ENTITY_REGISTRY = {
-    "AU_P0019": (DISEASE_2_LABEL, DISEASE_2_ALIASES),
-    "AU_P0062": (SYMPTOM_2_LABEL, SYMPTOM_2_ALIASES),
-    "AU_P0063": (UNKNOWN_2_LABEL, UNKNOWN_2_ALIASES),
+    "AU_Q0013": (DISEASE_2_LABEL, DISEASE_2_ALIASES),
+    "AU_Q0040": (SYMPTOM_2_LABEL, SYMPTOM_2_ALIASES),
+    "AU_Q0041": (UNKNOWN_2_LABEL, UNKNOWN_2_ALIASES),
 }
 
 
@@ -56,11 +56,11 @@ def build_entity_dict(entity_type, entity_ids, label_map, alias_map):
 
         # 没有别名
         if not aliases:
-            result.append({"id": eid, "name": name})
+            result.append({"id": str(eid), "name": name})
         else:
             # 别名列表转成字符串，用逗号分隔
             alias_str = ",".join(aliases)
-            result.append({"id": eid, "name": name, "别名": alias_str})
+            result.append({"id": str(eid), "name": name, "别名": alias_str})
 
     return {entity_type: result}
 

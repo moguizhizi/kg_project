@@ -93,8 +93,6 @@ def attribute_df_to_dict(df_chunk):
 # =========================
 # chunk 内分组逻辑
 # =========================
-
-
 def entity_df_to_dict(df_chunk) -> Dict[Tuple[str, str, str], List[dict]]:
     """
     将一个 df_chunk 按 (head_type, prop, tail_type) 分组
@@ -114,13 +112,6 @@ def entity_df_to_dict(df_chunk) -> Dict[Tuple[str, str, str], List[dict]]:
     groups = defaultdict(list)
 
     for _, row in df_chunk.iterrows():
-        # 过滤不需要的属性
-        if (
-            row["prop"] == "AU_P0019"
-            # or row["prop"] == "AU_P0057"
-            # or row["prop"] == "AU_P0058"
-        ):
-            continue
 
         key = (row["head_type"], row["prop"], row["tail_type"])
 

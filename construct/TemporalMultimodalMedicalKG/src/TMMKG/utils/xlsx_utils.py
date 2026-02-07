@@ -58,6 +58,48 @@ def build_column_mapping(
     return column_mapping
 
 
+from openpyxl import load_workbook
+from typing import List
+
+
+def load_unique_column_fast(xlsx_path: str, sheet_name: str, column_name: str) -> List:
+    """
+    超大 XLSX 文件快速读取指定列，去空值、去重，返回列表。
+
+    参数:
+        xlsx_path: Excel 文件路径
+        sheet_name: 需要读取的 sheet 名
+        column_name: 指定列名
+
+    返回:
+        List: 去空、去重后的列值列表
+    """
+    # 打开 workbook，read_only 模式
+    wb = load_workbook(xlsx_path, read_only=True)
+    ws = wb[sheet_name]
+
+    # 找到列索引（从 0 开始）
+    col_idx = None
+    for i, cell in enumerate(next(ws.iter_rows(min_row=1, max_row=1))):
+        if cell.value == column_name:
+            col_idx = i
+            break
+    if col_idx is None:
+        raise ValueError(f"列 {column_name} 不存在")
+
+    # 流式读取列
+    seen = set()
+    unique_values = []
+    for row in ws.iter_rows(min_row=2):
+        val = row[col_idx].value
+        if val is not None and val not in seen:
+            seen.add(val)
+            unique_values.append(val)
+
+    wb.close()
+    return unique_values
+
+
 def load_unique_column(
     path: str, sheet_name: str, column_name: str, as_list: bool = False
 ) -> pd.DataFrame | List:
