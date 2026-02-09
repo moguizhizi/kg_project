@@ -10,6 +10,8 @@ from TMMKG.sql_templates import (
     CREATE_CONSTRAINT_CYPHER,
     FETCH_NODE_IDS_CYPHER,
     HIGH_DEGREE_NODES_CYPHER,
+    UPDATE_NODE_PROPERTY_CYPHER,
+    UPDATE_NODE_PROPERTY_WITH_SKIP_CYPHER,
 )
 
 
@@ -100,3 +102,32 @@ def detect_super_nodes(tx, min_degree):
     query = HIGH_DEGREE_NODES_CYPHER.format(min_degree=min_degree)
 
     return list(tx.run(query))
+
+
+def update_node_property(tx, label, prop_name, prop_value, batch_size):
+    """
+    通用批量更新节点属性函数
+    Args:
+        tx: Neo4j 事务对象
+        label: 节点标签，例如 "Patient"
+        prop_name: 要更新的属性名，例如 "occupation"
+        prop_value: 要设置的属性值，例如 "工人"
+        batch_size: 每次处理的节点数量
+    Returns:
+        int: 本次更新的节点数量
+    """
+
+    query = UPDATE_NODE_PROPERTY_CYPHER.format(label=label, prop_name=prop_name)
+
+    result = tx.run(query, prop_value=prop_value, batch_size=batch_size)
+    return result.single()["updated_count"]
+
+
+def update_node_property_with_skip(tx, label, prop_name, prop_value, skip, batch_size):
+
+    query = UPDATE_NODE_PROPERTY_WITH_SKIP_CYPHER.format(
+        label=label, prop_name=prop_name
+    )
+
+    result = tx.run(query, prop_value=prop_value, skip=skip, batch_size=batch_size)
+    return result.single()["updated_count"]
