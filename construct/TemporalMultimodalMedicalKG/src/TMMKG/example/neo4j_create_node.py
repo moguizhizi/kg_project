@@ -10,6 +10,14 @@ import json
 from TMMKG.graph.neo4j_db import build_merge_node_cypher
 from TMMKG.infra.neo4j_db import create_neo4j_driver
 
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 
 SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
@@ -54,15 +62,15 @@ def main():
             properties=properties,
         )
 
-        print("Generated Cypher:")
-        print(cypher)
-        print("\nParams:")
-        print(params)
+        logging.info("Generated Cypher:")
+        logging.info(cypher)
+        logging.info("\nParams:")
+        logging.info(params)
 
         with driver.session() as session:
             session.run(cypher, params)
 
-        print("✅ Node created successfully.")
+        logging.info("Node created successfully.")
 
     finally:
         driver.close()
