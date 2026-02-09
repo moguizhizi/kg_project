@@ -60,3 +60,30 @@ FETCH_NODE_IDS_CYPHER = """
 MATCH (n:`{label}`)
 RETURN n.id AS id
 """
+
+# 统计指定标签节点的一跳关系数量
+COUNT_1HOP_RELATIONS_CYPHER = """
+MATCH (n:`{label}`)-[r]-()
+WHERE n.id IN $ids
+RETURN count(r) AS triples
+"""
+
+# 统计指定标签节点在 ids 列表中的 2-hop 关系数量
+COUNT_2HOP_RELATIONS_CYPHER = """
+MATCH (n:`{label}`)-[r1]-()-[r2]-()
+WHERE n.id IN $ids
+RETURN count(*) AS two_hop_triple_count
+"""
+
+# 查询度数大于指定阈值的高连接节点（Top N）
+HIGH_DEGREE_NODES_CYPHER = """
+MATCH (n)
+WITH n, COUNT {{ (n)--() }} AS degree
+WHERE degree > {min_degree}
+RETURN labels(n) AS labels, n.id AS id, degree
+ORDER BY degree DESC
+"""
+
+
+
+
