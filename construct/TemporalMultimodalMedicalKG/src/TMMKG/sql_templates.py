@@ -84,6 +84,19 @@ RETURN labels(n) AS labels, n.id AS id, degree
 ORDER BY degree DESC
 """
 
+# 通用批量更新节点属性的 Cypher 模板（自动分页）
+UPDATE_NODE_PROPERTY_CYPHER = f"""
+MATCH (n:`{{label}}`)
+WHERE n.`{{prop_name}}` IS NULL
+WITH n LIMIT $batch_size
+SET n.`{{prop_name}}` = $prop_value
+RETURN count(n) AS updated_count
+"""
 
-
-
+# 通用批量更新节点属性的 Cypher 模板（支持 SKIP 分页）
+UPDATE_NODE_PROPERTY_WITH_SKIP_CYPHER = f"""
+MATCH (n:`{{label}}`)
+WITH n SKIP $skip LIMIT $batch_size
+SET n.`{{prop_name}}` = $prop_value
+RETURN count(n) AS updated_count
+"""
