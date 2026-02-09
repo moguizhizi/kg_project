@@ -3,7 +3,11 @@
 import json
 from pathlib import Path
 
-from TMMKG.sql_templates import COUNT_NODES_IN_IDS_CYPHER, CREATE_CONSTRAINT_CYPHER, FETCH_NODE_IDS_CYPHER
+from TMMKG.sql_templates import (
+    COUNT_NODES_IN_IDS_CYPHER,
+    CREATE_CONSTRAINT_CYPHER,
+    FETCH_NODE_IDS_CYPHER,
+)
 
 
 SCHEMA_PATH = (
