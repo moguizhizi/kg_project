@@ -57,18 +57,3 @@ def build_merge_node_cypher(
         params["props"] = properties
 
     return cypher.strip(), params
-
-
-entity_type = "AU_Q0004"
-entity_id = "55"
-
-properties = {
-    "gender": "女",
-    "age": 2,
-}
-
-cypher_1, params_1 = build_merge_node_cypher(
-    entity_type=entity_type,
-    entity_id=entity_id,
-    properties=properties,
-)
