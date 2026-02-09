@@ -2,6 +2,13 @@ from TMMKG.graph.neo4j_db import build_unique_constraint_cypher
 from TMMKG.infra.neo4j_db import create_neo4j_driver
 from pathlib import Path
 import json
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
@@ -25,7 +32,7 @@ def main():
         for entity_type in ENTITY_TYPE_MAP.keys():
             cypher = build_unique_constraint_cypher(entity_type)
             session.run(cypher)
-            print(f"Constraint created for {entity_type}")
+            logging.info(f"Constraint created for {entity_type}")
 
     driver.close()
 
