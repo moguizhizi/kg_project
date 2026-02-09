@@ -4,9 +4,12 @@ import json
 from pathlib import Path
 
 from TMMKG.sql_templates import (
+    COUNT_1HOP_RELATIONS_CYPHER,
+    COUNT_2HOP_RELATIONS_CYPHER,
     COUNT_NODES_IN_IDS_CYPHER,
     CREATE_CONSTRAINT_CYPHER,
     FETCH_NODE_IDS_CYPHER,
+    HIGH_DEGREE_NODES_CYPHER,
 )
 
 
@@ -80,3 +83,20 @@ def fetch_node_ids(tx, label: str, limit: int | None = None):
 
     result = tx.run(query, limit=limit)
     return [record["id"] for record in result]
+
+
+def query_1hop_count(tx, label, ids):
+    query = COUNT_1HOP_RELATIONS_CYPHER.format(label=label)
+    return tx.run(query, ids=ids).single()["triples"]
+
+
+def query_2hop_count(tx, label, ids):
+    query = COUNT_2HOP_RELATIONS_CYPHER.format(label=label)
+    return tx.run(query, ids=ids).single()["two_hop_triple_count"]
+
+
+def detect_super_nodes(tx, min_degree):
+
+    query = HIGH_DEGREE_NODES_CYPHER.format(min_degree=min_degree)
+
+    return list(tx.run(query))
