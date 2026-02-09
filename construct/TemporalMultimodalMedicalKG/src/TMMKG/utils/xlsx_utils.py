@@ -1,17 +1,13 @@
 # utils/xlsx_utils.py
 
-import json
-import os
 import pandas as pd
 import zipfile
 from xml.etree import ElementTree
 from typing import List
 from pathlib import Path
 from typing import Dict
-
-BASE_DIR = Path(__file__).resolve().parent
-ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "ontology_mappings"
-HOME_BASED_USER_TRAINING = BASE_DIR / "entity_registry" / "home_based_user_training"
+from openpyxl import load_workbook
+from typing import List
 
 
 def build_column_mapping(
@@ -56,10 +52,6 @@ def build_column_mapping(
                 )
 
     return column_mapping
-
-
-from openpyxl import load_workbook
-from typing import List
 
 
 def load_unique_column_fast(xlsx_path: str, sheet_name: str, column_name: str) -> List:
@@ -150,33 +142,3 @@ def get_xlsx_sheetnames(xlsx_path: str) -> List[str]:
         ns = {"ns": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
         sheet_names = [s.attrib["name"] for s in root.findall(".//ns:sheet", ns)]
     return sheet_names
-
-
-# =========================
-# main (demo / test)
-# =========================
-def main():
-
-    with open(os.path.join(ONTOLOGY_MAPPINGS_DIR, "entity_type2label.json"), "r") as f:
-        ENTITY_TYPE_2_LABEL = json.load(f)
-
-    with open(os.path.join(ONTOLOGY_MAPPINGS_DIR, "prop2label.json"), "r") as f:
-        PROP_2_LABEL = json.load(f)
-
-    with open(os.path.join(HOME_BASED_USER_TRAINING, "column_mapping.json"), "r") as f:
-        COLUMN_MAPPING = json.load(f)
-
-    column_mapping = build_column_mapping(
-        excel_to_label=COLUMN_MAPPING,
-        property_ontology=ENTITY_TYPE_2_LABEL,
-        entity_ontology=PROP_2_LABEL,
-        strict=True,
-    )
-
-    print("Final column_mapping:")
-    for k, v in column_mapping.items():
-        print(f"  {k} -> {v}")
-
-
-if __name__ == "__main__":
-    main()
