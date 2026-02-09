@@ -41,8 +41,22 @@ MERGE (t:`{t_label}` {{id: row.t_id}})
 MERGE (h)-[r:`{r_name}`]->(t)
 """
 
+# 创建约束
 CREATE_CONSTRAINT_CYPHER = """
 CREATE CONSTRAINT IF NOT EXISTS
 FOR (n:{label})
 REQUIRE n.{pk} IS UNIQUE
+"""
+
+# 统计指定标签下、id 在 ids 列表中的节点数量
+COUNT_NODES_IN_IDS_CYPHER = """
+MATCH (n:`{label}`)
+WHERE n.id IN $ids
+RETURN count(n) AS node_count
+"""
+
+# 获取指定标签下所有节点的 id
+FETCH_NODE_IDS_CYPHER = """
+MATCH (n:`{label}`)
+RETURN n.id AS id
 """
