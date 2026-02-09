@@ -10,6 +10,7 @@ from TMMKG.meta_type import PropertyCandidate
 from TMMKG.services.encoder.registry import get_text_encoder
 from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
+from functools import lru_cache
 
 # -----------------------
 # logging
@@ -77,3 +78,49 @@ class PropertyResolver:
             )
 
         return results
+
+
+@lru_cache(maxsize=1)
+def init_property_resolver(
+    model_name: str = "Qwen3-Embedding-8B",
+    base_collection: str = "property_aliases",
+    qdrant_url: str = "http://localhost:6333",
+    score_threshold: float = 0.75,
+) -> PropertyResolver:
+    """
+    获取 PropertyResolver（单例）。
+
+    自动缓存：
+        - TextEncoder
+        - QdrantVectorStore
+        - Resolver
+
+    Returns:
+        PropertyResolver
+    """
+
+    logger.info("Initializing PropertyResolver...")
+
+    # encoder 只加载一次
+    encoder, embed_dim = get_text_encoder(
+        model_name,
+        model_root=os.getenv("LLM_ROOT"),
+    )
+
+    physical_collection = build_collection_name(base_collection, encoder)
+
+    vector_store = QdrantVectorStore(
+        collection_name=physical_collection,
+        vector_size=embed_dim,
+        client=QdrantClient(url=qdrant_url),
+    )
+
+    resolver = PropertyResolver(
+        vector_store=vector_store,
+        encoder=encoder,
+        score_threshold=score_threshold,
+    )
+
+    logger.info("PropertyResolver ready")
+
+    return resolver
