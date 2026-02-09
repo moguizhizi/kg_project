@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from TMMKG.sql_templates import CREATE_CONSTRAINT_CYPHER
+from TMMKG.sql_templates import COUNT_NODES_IN_IDS_CYPHER, CREATE_CONSTRAINT_CYPHER, FETCH_NODE_IDS_CYPHER
 
 
 SCHEMA_PATH = (
@@ -57,3 +57,22 @@ def build_merge_node_cypher(
         params["props"] = properties
 
     return cypher.strip(), params
+
+
+# ----------------------------
+# 查询函数
+# ----------------------------
+def query_nodes(tx, label, ids):
+    query = COUNT_NODES_IN_IDS_CYPHER.format(label=label)
+    result = tx.run(query, ids=ids)
+    return result.single()[0]
+
+
+def fetch_node_ids(tx, label: str, limit: int | None = None):
+    query = FETCH_NODE_IDS_CYPHER.format(label=label)
+
+    if limit:
+        query += "\nLIMIT $limit"
+
+    result = tx.run(query, limit=limit)
+    return [record["id"] for record in result]
