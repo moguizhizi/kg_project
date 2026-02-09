@@ -2,10 +2,11 @@ import time
 import random
 import logging
 
-from neo4j import GraphDatabase
 import matplotlib.pyplot as plt
 
 from TMMKG.graph.neo4j_db import fetch_node_ids, query_nodes
+from TMMKG.infra.neo4j_db import create_neo4j_driver
+from pathlib import Path
 
 
 logging.basicConfig(level=logging.INFO)
@@ -15,7 +16,11 @@ URI = "bolt://localhost:7687"
 USER = "neo4j"
 PASSWORD = "password"
 
-driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
+driver = create_neo4j_driver(
+    uri=URI,
+    user=USER,
+    password=PASSWORD,
+)
 
 
 # ----------------------------
@@ -81,10 +86,12 @@ def plot_results(results, title):
     plt.title(title)
     plt.grid(True)
 
+    base_dir = Path("/home/temp/dataset/home_based_user_training_20260123_v2/benchmark")
     filename = title.lower().replace(" ", "_") + ".png"
-    plt.savefig(filename, dpi=150)
+    image_path = base_dir / filename
+    plt.savefig(image_path, dpi=150)
 
-    logger.info(f"Benchmark plot saved to: {filename}")
+    logger.info(f"Benchmark plot saved to: {image_path}")
     plt.show()
 
 
