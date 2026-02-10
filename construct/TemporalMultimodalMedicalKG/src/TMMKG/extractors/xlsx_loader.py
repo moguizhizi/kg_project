@@ -80,7 +80,10 @@ def normalize_columns(
             logger.info("Stripped whitespace from column names")
 
     if column_mapping:
-        logger.info(f"Applying column mapping: {column_mapping}")
+        missing_cols = set(column_mapping) - set(df.columns)
+        if missing_cols:
+            logger.warning(f"Columns not found in DataFrame: {missing_cols}")
+
         df = df.rename(columns=column_mapping)
 
     logger.debug(f"Final columns: {list(df.columns)}")
