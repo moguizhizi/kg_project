@@ -15,6 +15,8 @@ from TMMKG.services.entity_resolver import EntityResolver
 from TMMKG.utils.path_utils import save_no_candidates
 import pickle
 
+from TMMKG.utils.secure_utils import short_id
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
@@ -169,7 +171,7 @@ def extract_entity_facts(
         (t[0], t[1], "NA", PROP_2_LABEL["AU_P0056"], "AU_P0056", g[0], g[1])
         for t in task_instances
         for g in game_instances
-        if str(t[0]).endswith(str(g[0]))  # 55_20211231_33 的结尾是 33
+        if (t[0].split("_")[2] == str(g[0]))  # 55_20211231_33 的结尾是 33
     ]
 
     # ----------------- 疾病映射 -----------------
@@ -310,6 +312,7 @@ def _emit_fact(
     head_id,
     head_type,
     head_name,
+    relation_name,
     prop,
     value,
     tail_type,
@@ -319,7 +322,7 @@ def _emit_fact(
             head_id,
             head_type,
             head_name,
-            PROP_2_LABEL[prop],
+            relation_name,
             prop,
             value,
             tail_type,
@@ -358,33 +361,60 @@ def extract_attribute_facts(
         val = record.get(prop)
         if val not in (None, ""):
             _emit_fact(
-                facts, patient_id, patient_type, patient_name, prop, val, tail_type
+                facts,
+                patient_id,
+                patient_type,
+                patient_name,
+                PROP_2_LABEL[prop],
+                prop,
+                val,
+                tail_type,
             )
 
     # =========================================================
     # 任务（Task）
     # =========================================================
+
     task_key = COLUMN_MAPPING["任务名称"]
     task_name = record.get(task_key)
-    if not task_name:
-        return facts
+    task_id = "NA"
 
-    task_type = task_key
+    if task_name:  # 只在存在时处理
+        task_type = task_key
 
-    prop = COLUMN_MAPPING["任务id"]
-    task_id = str(int(record.get(prop)))
+        prop = COLUMN_MAPPING["任务id"]
+        task_id = str(int(record.get(prop)))
 
-    task_props = [
-        ("任务类型", "AU_Q0038"),
-    ]
+        _emit_fact(
+            facts,
+            task_id,
+            task_type,
+            task_name,
+            "NA",
+            "NA",
+            "NA",
+            "NA",
+        )
 
-    for col_name, tail_type in task_props:
-        prop = COLUMN_MAPPING[col_name]
-        if prop in skip_fields:
-            continue
-        val = record.get(prop)
-        if val not in (None, ""):
-            _emit_fact(facts, task_id, task_type, task_name, prop, val, tail_type)
+        task_props = []
+
+        for col_name, tail_type in task_props:
+            prop = COLUMN_MAPPING[col_name]
+            if prop in skip_fields:
+                continue
+
+            val = record.get(prop)
+            if val not in (None, ""):
+                _emit_fact(
+                    facts,
+                    task_id,
+                    task_type,
+                    task_name,
+                    PROP_2_LABEL[prop],
+                    prop,
+                    val,
+                    tail_type,
+                )
 
     # =========================================================
     # 任务实例（Task Instance）
@@ -394,7 +424,8 @@ def extract_attribute_facts(
         return facts
 
     formatted_date = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y%m%d")
-    task_instance_id = f"{patient_id}_{formatted_date}_{task_id}"
+    sid = short_id()
+    task_instance_id = f"{patient_id}_{formatted_date}_{task_id}_{sid}"
     task_instance_type = "AU_Q0012"
     task_instance_name = f"任务_{task_instance_id}"
 
@@ -404,6 +435,7 @@ def extract_attribute_facts(
         ("常模分", "AU_Q0036"),
         ("是否活跃", "AU_Q0037"),
         ("任务状态", "AU_Q0026"),
+        ("任务类型", "AU_Q0038"),
     ]
 
     for col_name, tail_type in instance_props:
@@ -417,6 +449,7 @@ def extract_attribute_facts(
                 task_instance_id,
                 task_instance_type,
                 task_instance_name,
+                PROP_2_LABEL[prop],
                 prop,
                 val,
                 tail_type,
@@ -446,6 +479,7 @@ def extract_attribute_facts(
                 task_instance_set_id,
                 task_instance_set_type,
                 task_instance_set_name,
+                PROP_2_LABEL[prop],
                 prop,
                 val,
                 tail_type,
