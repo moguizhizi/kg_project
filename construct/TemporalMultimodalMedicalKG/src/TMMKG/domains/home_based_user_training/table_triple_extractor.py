@@ -17,6 +17,12 @@ import pickle
 
 from TMMKG.utils.secure_utils import short_id
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
@@ -28,19 +34,12 @@ HOME_BASED_USER_TRAINING = (
 CACHE_FILE = "/home/temp/dataset/home_based_user_training_20260123_v2/disease_candidates_cache.pkl"
 DIS_TO_CANDIDATES_CACHE: Dict[str, List] = {}
 
-# 模块加载时只加载一次缓存
+# 模块加载时：如果存在就删除（强制刷新缓存）
 if os.path.exists(CACHE_FILE):
-    with open(CACHE_FILE, "rb") as f:
-        DIS_TO_CANDIDATES_CACHE = pickle.load(f)
-else:
-    DIS_TO_CANDIDATES_CACHE = {}
+    os.remove(CACHE_FILE)
+    logger.warning(f"[Cache] Removed old cache file: {CACHE_FILE}")
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+DIS_TO_CANDIDATES_CACHE = {}
 
 
 with open(os.path.join(ONTOLOGY_MAPPINGS_DIR, "prop2label.json"), "r") as f:
@@ -188,7 +187,6 @@ def extract_entity_facts(
                 if not candidates:
                     save_no_candidates(dis, output_file=no_candidates_output_path)
                 else:
-                    # 立即追加写入文件
                     with open(CACHE_FILE, "wb") as f:
                         pickle.dump(DIS_TO_CANDIDATES_CACHE, f)
 
