@@ -25,7 +25,7 @@ HOME_BASED_USER_TRAINING = (
 )
 
 # ------------------ 全局缓存 ------------------
-CACHE_FILE = "disease_candidates_cache.pkl"
+CACHE_FILE = "/home/temp/dataset/home_based_user_training_20260123_v2/disease_candidates_cache.pkl"
 DIS_TO_CANDIDATES_CACHE: Dict[str, List] = {}
 
 # 模块加载时只加载一次缓存
@@ -49,7 +49,7 @@ with open(os.path.join(ONTOLOGY_MAPPINGS_DIR, "prop2label.json"), "r") as f:
 with open(os.path.join(HOME_BASED_USER_TRAINING, "column_mapping.json"), "r") as f:
     COLUMN_MAPPING = json.load(f)
 
-output_file = (
+no_candidates_output_path = (
     "/home/temp/dataset/home_based_user_training_20260123_v2/no_candidates.jsonl"
 )
 
@@ -186,7 +186,7 @@ def extract_entity_facts(
                 candidates = resolver.resolve(text=dis, top_k=1)
                 DIS_TO_CANDIDATES_CACHE[dis] = candidates if candidates else []
                 if not candidates:
-                    save_no_candidates(dis)
+                    save_no_candidates(dis, output_file=no_candidates_output_path)
                 else:
                     # 立即追加写入文件
                     with open(CACHE_FILE, "wb") as f:
