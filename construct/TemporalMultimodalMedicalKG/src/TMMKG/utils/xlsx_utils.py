@@ -8,6 +8,15 @@ from pathlib import Path
 from typing import Dict
 from openpyxl import load_workbook
 from typing import List
+import logging
+import time
+
+from TMMKG.utils.path_utils import safe_filename
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 def build_column_mapping(
@@ -142,3 +151,70 @@ def get_xlsx_sheetnames(xlsx_path: str) -> List[str]:
         ns = {"ns": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
         sheet_names = [s.attrib["name"] for s in root.findall(".//ns:sheet", ns)]
     return sheet_names
+
+
+def xlsx_to_parquet_dataset(
+    input_path: str,
+    output_dir: str = None,
+    compression="zstd",
+    overwrite=False,
+) -> Dict[str, str]:
+    """
+    ⭐ 超低内存版本
+    ⭐ 不一次加载全部sheet
+    ⭐ 超适合大文件（>1GB）
+
+    每个sheet -> 一个parquet
+    """
+
+    input_path = Path(input_path)
+
+    if not input_path.exists():
+        raise FileNotFoundError(input_path)
+
+    if output_dir is None:
+        output_dir = input_path.parent / f"{input_path.stem}_parquet"
+    else:
+        output_dir = Path(output_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Fetching sheet names (fast)...")
+
+    sheet_names = get_xlsx_sheetnames(str(input_path))
+
+    logger.info(f"Found {len(sheet_names)} sheets")
+
+    paths = {}
+    total_start = time.perf_counter()
+
+    # 核心优化：逐sheet读取
+    for sheet in sheet_names:
+
+        safe_sheet = safe_filename(sheet)
+        parquet_path = output_dir / f"{safe_sheet}.parquet"
+
+        if parquet_path.exists() and not overwrite:
+            logger.info(f"Skip existing -> {sheet}")
+            paths[sheet] = str(parquet_path)
+            continue
+
+        logger.info(f"Reading sheet -> {sheet}")
+
+        start = time.perf_counter()
+
+        df = pd.read_excel(input_path, sheet_name=sheet, engine="openpyxl")
+
+        df.to_parquet(parquet_path, compression=compression, index=False)
+
+        logger.info(
+            f"Converted [{sheet}] "
+            f"rows={len(df)} "
+            f"time={time.perf_counter()-start:.2f}s"
+        )
+
+        paths[sheet] = str(parquet_path)
+
+    logger.info(f"ALL DONE in {time.perf_counter()-total_start:.2f}s")
+
+    return paths
