@@ -95,7 +95,7 @@ def parquet_to_records(
     Returns:
         List[Dict]: 已清洗的结构化数据
     """
-    logger.info("Starting XLSX to records pipeline")
+    logger.info("Starting Parquet to records pipeline")
 
     df = load_parquet_as_dataframe(path)
     df = normalize_columns(df, column_mapping=column_mapping)

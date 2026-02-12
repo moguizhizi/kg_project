@@ -9,6 +9,7 @@ import json
 from TMMKG.domains.home_based_user_training.table_triple_extractor import (
     extract_facts_from_records,
 )
+from TMMKG.extractors.parquet_loader import parquet_to_records
 from TMMKG.extractors.xlsx_loader import records_to_xlsx, xlsx_to_records
 from TMMKG.graph.neo4j_db import get_node_schema
 from TMMKG.infra.neo4j_db import create_neo4j_driver
@@ -51,9 +52,9 @@ def run_home_based_user_training_pipeline(
     uri: str,
     user: str,
     password: str,
-    input_xlsx: str,
     sheet_name: str,
     result_dir: str,
+    parquet_dir: str,
     batch_size: int = 50_000,
     resolver: EntityResolver = None,
 ):
@@ -61,7 +62,7 @@ def run_home_based_user_training_pipeline(
     Home Based User Training 数据处理 + Neo4j 导入 pipeline
     """
 
-    paths = build_pipeline_paths(result_dir)
+    paths = build_pipeline_paths(result_dir, parquet_dir, sheet_name)
 
     driver = create_neo4j_driver(uri=uri, user=user, password=password)
 
@@ -78,15 +79,14 @@ def run_home_based_user_training_pipeline(
         date_fields = [COLUMN_MAPPING["训练日期"]]
 
         # =========================
-        # Load XLSX
+        # Load Parquet
         # =========================
-        logger.info("Loading XLSX...")
+        logger.info("Loading Parquet...")
 
         load_start = time.perf_counter()
 
-        records = xlsx_to_records(
-            path=input_xlsx,
-            sheet_name=sheet_name,
+        records = parquet_to_records(
+            path=paths["parquet"],
             date_fields=date_fields,
             column_mapping=COLUMN_MAPPING,
         )
@@ -211,6 +211,7 @@ if __name__ == "__main__":
 
     xlsx_path = "/home/temp/dataset/home_based_user_training_20260123_v2/home_based_user_training_20260123_v2.xlsx"
     base_result_dir = "/home/temp/dataset/home_based_user_training_20260123_v2"
+    base_parquet_dir = "/home/temp/dataset/home_based_user_training_20260123_v2/parquet"
 
     sheet_names = get_xlsx_sheetnames(xlsx_path)
     sheet_names = sheet_names[0 : min(19, len(sheet_names))]
@@ -223,8 +224,8 @@ if __name__ == "__main__":
             uri="bolt://localhost:7687",
             user="neo4j",
             password="password",
-            input_xlsx=xlsx_path,
             sheet_name=sheet_name,
             result_dir=result_dir,
+            parquet_dir=base_parquet_dir,
             resolver=resolver,
         )
