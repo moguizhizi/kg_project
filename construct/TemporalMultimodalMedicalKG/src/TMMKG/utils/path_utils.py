@@ -10,7 +10,7 @@ def get_last_dir_name(path: str) -> str:
     return Path(path).name
 
 
-def build_pipeline_paths(result_dir: str):
+def build_pipeline_paths(result_dir: str, parquet_dir: str, sheet_name: str):
     """
     自动构建 pipeline 所有输出路径
     """
@@ -20,12 +20,17 @@ def build_pipeline_paths(result_dir: str):
 
     prefix = result_dir.name  # result1
 
+    parquet_dir = Path(parquet_dir)
+    parquet_dir.mkdir(parents=True, exist_ok=True)
+    safe_sheet = safe_filename(sheet_name)
+
     return {
         "normalized": result_dir / f"{prefix}.normalized.xlsx",
         "attr_facts": result_dir / f"{prefix}_attribute_facts.jsonl",
         "entity_facts": result_dir / f"{prefix}_entity_facts.jsonl",
         "duckdb_attr": result_dir / "attribute_facts.duckdb",
         "duckdb_entity": result_dir / "entity_facts.duckdb",
+        "parquet": parquet_dir / f"{safe_sheet}.parquet",
     }
 
 
