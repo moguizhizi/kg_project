@@ -1,4 +1,4 @@
-from TMMKG.utils.parquet_utils import load_parquet_as_dataframe
+from TMMKG.extractors.parquet_loader import load_parquet_as_dataframe
 
 
 if __name__ == "__main__":
