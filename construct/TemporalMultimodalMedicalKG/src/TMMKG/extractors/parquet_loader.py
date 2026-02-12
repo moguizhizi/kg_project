@@ -68,7 +68,32 @@ def parquet_to_records(
     required_fields: Optional[List[str]] = None,
 ) -> List[Dict]:
     """
-    XLSX → 干净的 records（List[Dict]）
+    Parquet → 标准化 records（List[Dict]）
+
+    Pipeline:
+        Parquet文件
+            ↓
+        DataFrame加载
+            ↓
+        列名规范化 / 空行清理 / 缺失值填充
+            ↓
+        Schema校验（可选）
+            ↓
+        日期字段解析（可选）
+            ↓
+        多值字段拆分（可选）
+            ↓
+        输出 records（适用于KG / JSON / DB写入）
+
+    Args:
+        path: parquet 文件路径
+        column_mapping: 列重命名映射
+        date_fields: 需要解析为日期的字段
+        multi_value_fields: 需要拆分的多值字段
+        required_fields: 必须存在的字段（schema校验）
+
+    Returns:
+        List[Dict]: 已清洗的结构化数据
     """
     logger.info("Starting XLSX to records pipeline")
 
