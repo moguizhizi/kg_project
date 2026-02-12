@@ -69,9 +69,6 @@ def run_home_based_user_training_pipeline(
         # =========================
         # Load mappings
         # =========================
-        with open(Path(ONTOLOGY_MAPPINGS_DIR) / "entity_type2label.json") as f:
-            ENTITY_TYPE_2_LABEL = json.load(f)
-
         with open(Path(ONTOLOGY_MAPPINGS_DIR) / "prop2label.json") as f:
             PROP_2_LABEL = json.load(f)
 
@@ -80,29 +77,29 @@ def run_home_based_user_training_pipeline(
 
         date_fields = [COLUMN_MAPPING["训练日期"]]
 
-        # # =========================
-        # # Load XLSX
-        # # =========================
-        # logger.info("Loading XLSX...")
+        # =========================
+        # Load XLSX
+        # =========================
+        logger.info("Loading XLSX...")
 
-        # load_start = time.perf_counter()
+        load_start = time.perf_counter()
 
-        # records = xlsx_to_records(
-        #     path=input_xlsx,
-        #     sheet_name=sheet_name,
-        #     date_fields=date_fields,
-        #     column_mapping=COLUMN_MAPPING,
-        # )
+        records = xlsx_to_records(
+            path=input_xlsx,
+            sheet_name=sheet_name,
+            date_fields=date_fields,
+            column_mapping=COLUMN_MAPPING,
+        )
 
-        # logger.info(f"Loaded {len(records)} records")
-        # logger.info(f"Load cost: {time.perf_counter() - load_start:.2f}s")
+        logger.info(f"Loaded {len(records)} records")
+        logger.info(f"Load cost: {time.perf_counter() - load_start:.2f}s")
 
-        # # =========================
-        # # Normalize XLSX
-        # # =========================
-        # logger.info("Writing normalized XLSX...")
+        # =========================
+        # Normalize XLSX
+        # =========================
+        logger.info("Writing normalized XLSX...")
 
-        # records_to_xlsx(records, paths["normalized"])
+        records_to_xlsx(records, paths["normalized"])
 
         # =========================
         # Extract facts
