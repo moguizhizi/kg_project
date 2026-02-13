@@ -34,6 +34,14 @@ def clean_dataframe(
         -> 不执行多标签规范化
     """
 
+    df.columns = (
+        df.columns.str.replace(
+            r"[\u200b\u200c\u200d\ufeff]", "", regex=True
+        )  # 去隐形字符
+        .str.strip()
+        .str.replace(r"\s+", " ", regex=True)
+    )
+
     df = (
         df.fillna("")
         .astype(str)
