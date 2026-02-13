@@ -11,6 +11,58 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def normalize_multilabel_series(series: pd.Series) -> pd.Series:
+    """
+    规范多标签字段：
+
+    蓝色_ 红色 -> 蓝色_红色
+    红色_蓝色 -> 蓝色_红色 （排序去重）
+    """
+
+    return series.str.split("_").apply(
+        lambda parts: "_".join(sorted({p.strip() for p in parts if p and p.strip()}))
+    )
+
+
+def clean_dataframe(
+    df: pd.DataFrame, multi_label_keywords: list | None = None
+) -> pd.DataFrame:
+    """
+    高性能清洗函数
+
+    当 multi_label_keywords=None 时：
+        -> 不执行多标签规范化
+    """
+
+    df = (
+        df.fillna("")
+        .astype(str)
+        .apply(lambda col: col.str.strip())
+        .replace(r"\s*_\s*", "_", regex=True)
+        .replace(r"\s+", " ", regex=True)
+    )
+
+    # 关键改动
+    if not multi_label_keywords:
+        return df
+
+    # 防止有人传字符串，例如 "颜色"
+    if isinstance(multi_label_keywords, str):
+        multi_label_keywords = [multi_label_keywords]
+
+    target_cols = [
+        col for col in df.columns if any(k == col for k in multi_label_keywords)
+    ]
+
+    for col in target_cols:
+        try:
+            df[col] = normalize_multilabel_series(df[col])
+        except Exception:
+            pass
+
+    return df
+
+
 def parse_date_fields(
     df: pd.DataFrame,
     date_fields: List[str],

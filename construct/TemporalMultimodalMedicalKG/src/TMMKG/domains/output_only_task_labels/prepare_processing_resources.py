@@ -8,6 +8,7 @@ def main():
         input_path="/home/temp/dataset/output_only_task_labels/output_only_task_labels.xlsx",
         output_dir="/home/temp/dataset/output_only_task_labels/parquet",
         overwrite=True,
+        multi_label_keywords=["核心内容颜色​", "主要颜色", "辅助颜色"],
     )
 
     print(paths)
