@@ -11,6 +11,7 @@ from typing import List
 import logging
 import time
 
+from TMMKG.extractors.dataframe_processor import clean_dataframe
 from TMMKG.utils.path_utils import safe_filename
 
 logging.basicConfig(
@@ -158,13 +159,16 @@ def xlsx_to_parquet_dataset(
     output_dir: str = None,
     compression="zstd",
     overwrite=False,
+    multi_label_keywords: list = None,
 ) -> Dict[str, str]:
     """
-    ⭐ 超低内存版本
-    ⭐ 不一次加载全部sheet
-    ⭐ 超适合大文件（>1GB）
+    特性：
 
-    每个sheet -> 一个parquet
+    超低内存（逐 sheet）
+    自动清洗标签污染
+    防 schema 漂移
+    高性能 vectorized
+    防止 KG 标签爆炸
     """
 
     input_path = Path(input_path)
@@ -188,7 +192,6 @@ def xlsx_to_parquet_dataset(
     paths = {}
     total_start = time.perf_counter()
 
-    # 核心优化：逐sheet读取
     for sheet in sheet_names:
 
         safe_sheet = safe_filename(sheet)
@@ -200,14 +203,11 @@ def xlsx_to_parquet_dataset(
             continue
 
         logger.info(f"Reading sheet -> {sheet}")
-
         start = time.perf_counter()
 
         df = pd.read_excel(input_path, sheet_name=sheet, engine="openpyxl", dtype=str)
 
-        df = df.fillna("")
-
-        df = df.apply(lambda col: col.str.strip())
+        df = clean_dataframe(df, multi_label_keywords)
 
         df.to_parquet(parquet_path, compression=compression, index=False)
 
