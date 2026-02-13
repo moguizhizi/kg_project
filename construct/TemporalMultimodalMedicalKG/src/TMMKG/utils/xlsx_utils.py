@@ -203,7 +203,7 @@ def xlsx_to_parquet_dataset(
 
         start = time.perf_counter()
 
-        df = pd.read_excel(input_path, sheet_name=sheet,  engine="openpyxl",   dtype=str)
+        df = pd.read_excel(input_path, sheet_name=sheet, engine="openpyxl", dtype=str)
 
         df = df.fillna("")
 
