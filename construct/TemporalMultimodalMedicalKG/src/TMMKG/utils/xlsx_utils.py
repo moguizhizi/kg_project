@@ -207,6 +207,8 @@ def xlsx_to_parquet_dataset(
 
         df = df.fillna("")
 
+        df = df.apply(lambda col: col.str.strip())
+
         df.to_parquet(parquet_path, compression=compression, index=False)
 
         logger.info(
