@@ -48,6 +48,7 @@ def clean_dataframe(
         .apply(lambda col: col.str.strip())
         .replace(r"\s*_\s*", "_", regex=True)
         .replace(r"\s+", " ", regex=True)
+        .replace(r"[\u200b\u200c\u200d\ufeff]", "", regex=True)
     )
 
     # 关键改动
