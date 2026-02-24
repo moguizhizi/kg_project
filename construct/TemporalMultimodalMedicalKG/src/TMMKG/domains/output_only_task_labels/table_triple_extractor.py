@@ -173,7 +173,6 @@ def extract_facts_from_records(
 # 属性七元组
 # =========================
 
-
 def _emit_fact(
     facts: List[TypedFact],
     head_id,
