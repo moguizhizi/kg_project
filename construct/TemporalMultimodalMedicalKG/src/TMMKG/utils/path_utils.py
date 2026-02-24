@@ -39,14 +39,9 @@ def sheet_to_result_dir(sheet_name: str, base_dir: str) -> Path:
     Result 11 -> result11
     """
 
-    match = re.search(r"\d+", sheet_name)
+    safe_sheet = safe_filename(sheet_name)
 
-    if not match:
-        raise ValueError(f"Cannot extract number from sheet name: {sheet_name}")
-
-    number = match.group()
-
-    return Path(base_dir) / f"result{number}"
+    return Path(base_dir) / safe_sheet
 
 
 def save_no_candidates(dis, output_file="no_candidates.jsonl"):
