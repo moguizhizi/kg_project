@@ -84,7 +84,8 @@ def attribute_df_to_dict(df_chunk):
         if prop and prop.strip().upper() != "NA":
             entity_map[head_id][prop] = value
 
-        entity_map[head_id]["name"] = name
+        if name and name.strip().upper() != "NA":
+            entity_map[head_id]["name"] = name
 
     # 把内层 dict 转成 list
     return {
