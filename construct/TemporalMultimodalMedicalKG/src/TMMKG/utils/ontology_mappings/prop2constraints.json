@@ -1105,5 +1105,285 @@
         "Value-type constraint": [
             "AU_Q0113"
         ]
+    },
+    "AU_P0140": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0141": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0142": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0143": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0144": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0145": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0146": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0147": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0148": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0149": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0150": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0151": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0152": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0153": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0154": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0155": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0156": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0157": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0158": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0159": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0160": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0161": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0162": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0163": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0164": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0165": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0166": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0167": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0168": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0169": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0170": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0171": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0172": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0173": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
+    },
+    "AU_P0174": {
+        "Subject type constraint": [
+            "AU_Q0039"
+        ],
+        "Value-type constraint": [
+            "AU_Q0036"
+        ]
     }
 }
