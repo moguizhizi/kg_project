@@ -1,0 +1,80 @@
+infra:
+  mongo:
+    uri: "mongodb://localhost:27017/?directConnection=true"
+  qdrant:
+    uri: "http://localhost:6333"
+  neo4j:
+    uri: "bolt://localhost:7687"
+    user: "neo4j"
+    password: "password"
+
+embedding:
+  model_name: "Qwen3-Embedding-8B"
+  model_root: "/home/llm_model"
+
+logging:
+  dir: "logs"
+  file: "app.log"
+  level: "INFO"
+  max_bytes: 10485760
+  backup_count: 5
+  format: "%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)d | %(message)s"
+  programs:
+    create_tmmkg_ontology_db:
+      file: "create_tmmkg_ontology_db.log"
+    create_tmmkg_entity_db:
+      file: "create_tmmkg_entity_db.log"
+    create_HBUT_KG:
+      file: "create_HBUT_KG.log"
+    create_L2BA_KG:
+      file: "create_L2BA_KG.log"
+    create_OOTL_KG:
+      file: "create_OOTL_KG.log"
+
+ontology:
+  database: "tmmkg_ontology"
+  mappings_dir: "src/TMMKG/utils/ontology_mappings"
+  drop_collections: true
+  collections:
+    entity_types: "entity_types"
+    entity_type_aliases: "entity_type_aliases"
+    enum_entity_type: "enum_entity_type"
+    properties: "properties"
+    property_aliases: "property_aliases"
+
+entity_registry:
+  database: "tmmkg_entity"
+  mappings_dir: "src/TMMKG/utils/entity_registry"
+  drop_collections: true
+  collections:
+    disease: "disease_entity"
+    symptom: "symptom_entity"
+    unknown: "unknown_entity"
+    entity_aliases: "entity_aliases"
+
+entity_resolver:
+  model_name: "Qwen3-Embedding-8B"
+  base_collection: "entity_aliases"
+  score_threshold: 0.90
+
+pipelines:
+  HBUT:
+    xlsx_path: "/home/temp/dataset/home_user_training_data_through_202604_20260509/home_user_training_data_through_202604_20260509.xlsx"
+    base_result_dir: "/home/temp/dataset/home_user_training_data_through_202604_20260509"
+    base_parquet_dir: "/home/temp/dataset/home_user_training_data_through_202604_20260509/parquet"
+    batch_size: 50000
+    overwrite_parquet: true
+
+  L2BA:
+    xlsx_path: "/home/temp/dataset/level_2_brain_ability_data/level_2_brain_ability_data_20260509.xlsx"
+    result_dir: "/home/temp/dataset/level_2_brain_ability_data"
+    parquet_dir: "/home/temp/dataset/level_2_brain_ability_data/parquet"
+    batch_size: 50000
+    overwrite_parquet: true
+
+  OOTL:
+    xlsx_path: "/home/temp/dataset/output_only_task_labels/output_only_task_labels.xlsx"
+    base_result_dir: "/home/temp/dataset/output_only_task_labels"
+    base_parquet_dir: "/home/temp/dataset/output_only_task_labels/parquet"
+    batch_size: 50000
+    overwrite_parquet: true
