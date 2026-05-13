@@ -1,17 +1,17 @@
-"""
-Create the level 2 brain ability KG from the source XLSX and import attribute
-facts into Neo4j.
+"""构建 Level 2 Brain Ability 知识图谱。
+
+本模块从源 XLSX 生成 Parquet 数据集，再从 Parquet 读取记录并抽取
+attribute facts，最后将属性事实写入 Neo4j。
 
 Usage:
-    Full import:
+    完整导入：
         PYTHONPATH=src python src/TMMKG/create_L2BA_KG.py
 
-    Smoke test on the first 10 normalized records:
+    小样本调试：
         PYTHONPATH=src python src/TMMKG/create_L2BA_KG.py --limit-records 10
 
-`--limit-records` is a runtime-only safety switch. It keeps the same
-XLSX -> Parquet -> facts -> Neo4j path, but limits processing to the first N
-normalized records so the import can be inspected before a full run.
+--limit-records 是运行时调试参数，不改变主流程，只限制每个 sheet
+处理的前 N 条记录，便于在完整导入前检查抽取和入库结果。
 """
 
 import argparse
