@@ -1,13 +1,6 @@
-import os
 import logging
 
-from qdrant_client import QdrantClient
-
-from TMMKG.services.encoder.registry import get_text_encoder
-from TMMKG.services.entity_resolver import EntityResolver, init_entity_resolver
-from TMMKG.vectorstores.base import build_collection_name
-from TMMKG.vectorstores.qdrant import QdrantVectorStore
-from dotenv import load_dotenv, find_dotenv
+from TMMKG.services.entity_resolver import init_entity_resolver
 
 
 logging.basicConfig(
@@ -15,8 +8,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-_ = load_dotenv(find_dotenv())
 
 
 def main():

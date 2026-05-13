@@ -1,12 +1,10 @@
 import logging
-import os
 from qdrant_client import QdrantClient
 from typing import List
 from TMMKG.meta_type import EntityTypeCandidate
 from TMMKG.services.encoder.registry import get_text_encoder
 from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
-from dotenv import load_dotenv, find_dotenv
 
 # -----------------------
 # logging
@@ -16,9 +14,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-
-_ = load_dotenv(find_dotenv())
 
 # -----------------------
 # EntityTypeResolver
@@ -78,15 +73,12 @@ class EntityTypeResolver:
         return results
 
 
-import os
-import logging
-from qdrant_client import QdrantClient
-
 logger = logging.getLogger(__name__)
 
 
 def init_entity_type_resolver(
     model_name: str = "Qwen3-Embedding-8B",
+    model_root: str | None = None,
     base_collection: str = "entity_type_aliases",
     qdrant_url: str = "http://localhost:6333",
     score_threshold: float = 0.75,
@@ -111,7 +103,7 @@ def init_entity_type_resolver(
     # -----------------------
     encoder, embed_dim = get_text_encoder(
         model_name,
-        model_root=os.getenv("LLM_ROOT"),
+        model_root=model_root,
     )
     logger.info(f"TextEncoder initialized (dim={embed_dim})")
 
