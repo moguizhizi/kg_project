@@ -1,8 +1,22 @@
-import os
-import logging
+"""构建 Output Only Task Labels 知识图谱。
+
+本模块从 YAML 配置读取 XLSX、Parquet 和 Neo4j 参数，
+将原始 XLSX 转换为 Parquet，再从 Parquet 读取记录并抽取
+attribute facts，最后将属性事实写入 Neo4j。
+
+当前流程只处理 attribute facts，不生成或导入 entity facts。
+可通过 --limit-records 限制每个 sheet 的记录数，用于小样本调试。
+
+Usage:
+    完整导入：
+        PYTHONPATH=src python src/TMMKG/create_OOTL_KG.py
+
+    小样本调试：
+        PYTHONPATH=src python src/TMMKG/create_OOTL_KG.py --limit-records 10
+"""
+
+import argparse
 import time
-import sys
-from datetime import datetime
 from pathlib import Path
 import json
 
@@ -11,149 +25,119 @@ from TMMKG.domains.output_only_task_labels.table_triple_extractor import (
     extract_facts_from_records,
 )
 from TMMKG.extractors.parquet_loader import parquet_to_records
-from TMMKG.extractors.xlsx_loader import records_to_xlsx, xlsx_to_records
 from TMMKG.graph.neo4j_db import get_node_schema
 from TMMKG.infra.neo4j_db import create_neo4j_driver
-from TMMKG.services.entity_resolver import EntityResolver, init_entity_resolver
 from TMMKG.sql_templates import (
     ATTRIBUTE_FACT_SQL,
-    ENTITY_FACT_SQL,
     UPSERT_NODE_CYPHER,
-    UPSERT_REL_CYPHER,
 )
 from TMMKG.utils.json_utils import (
     attribute_df_to_dict,
-    entity_df_to_dict,
     iter_duckdb_query_df,
     write_facts_jsonl,
 )
 from TMMKG.utils.path_utils import build_pipeline_paths, sheet_to_result_dir
-from TMMKG.utils.xlsx_utils import get_xlsx_sheetnames
-from dotenv import load_dotenv, find_dotenv
+from TMMKG.utils.config import load_config
+from TMMKG.utils.logger import get_logger, setup_logging_from_config
+from TMMKG.utils.xlsx_utils import xlsx_to_parquet_dataset
 
 BASE_DIR = Path(__file__).resolve().parent
-ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
 HOME_BASED_USER_TRAINING = (
     BASE_DIR / "utils" / "entity_registry" / "output_only_task_labels"
 )
 
-MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
-with open(MAPPINGS_DIR / "prop2label.json", "r") as f:
-    PROP_2_LABEL = json.load(f)
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
-_ = load_dotenv(find_dotenv())
+logger = get_logger(__name__)
 
 
 def run_output_only_task_labels_pipeline(
     uri: str,
     user: str,
     password: str,
-    sheet_name: str,
-    result_dir: str,
+    xlsx_path: str,
+    base_result_dir: str,
     parquet_dir: str,
     batch_size: int = 50_000,
-    resolver: EntityResolver = None,
+    overwrite_parquet: bool = False,
+    sheet_limit: int | None = None,
+    limit_records: int | None = None,
+    entity_registry_dir: str | Path | None = None,
 ):
     """
-    Output only task labels 数据处理 + Neo4j 导入 pipeline
-    """
+    Output only task labels 数据处理 + Neo4j 导入 pipeline。
 
-    paths = build_pipeline_paths(result_dir, parquet_dir, sheet_name)
+    流程：XLSX -> Parquet -> attribute facts -> Neo4j。
+    """
+    entity_registry_path = (
+        Path(entity_registry_dir) if entity_registry_dir else HOME_BASED_USER_TRAINING
+    )
+
+    with open(entity_registry_path / "column_mapping.json") as f:
+        COLUMN_MAPPING = json.load(f)
+
+    logger.info("Converting XLSX to Parquet: %s", xlsx_path)
+    parquet_paths = xlsx_to_parquet_dataset(
+        input_path=xlsx_path,
+        output_dir=parquet_dir,
+        overwrite=overwrite_parquet,
+    )
+
+    if sheet_limit is not None:
+        parquet_paths = dict(list(parquet_paths.items())[:sheet_limit])
 
     driver = create_neo4j_driver(uri=uri, user=user, password=password)
 
     try:
-        # =========================
-        # Load mappings
-        # =========================
-        with open(Path(ONTOLOGY_MAPPINGS_DIR) / "prop2label.json") as f:
-            PROP_2_LABEL = json.load(f)
+        for sheet_name, parquet_path in parquet_paths.items():
+            logger.info("Processing sheet: %s", sheet_name)
+            result_dir = sheet_to_result_dir(sheet_name, base_result_dir)
+            paths = build_pipeline_paths(result_dir, parquet_dir, sheet_name)
 
-        with open(Path(HOME_BASED_USER_TRAINING) / "column_mapping.json") as f:
-            COLUMN_MAPPING = json.load(f)
+            logger.info("Loading Parquet...")
+            load_start = time.perf_counter()
 
-        # =========================
-        # Load Parquet
-        # =========================
-        logger.info("Loading Parquet...")
+            records = parquet_to_records(
+                path=parquet_path,
+                column_mapping=COLUMN_MAPPING,
+            )
 
-        load_start = time.perf_counter()
+            if limit_records is not None:
+                logger.info("Test mode enabled: using first %d records", limit_records)
+                records = records[:limit_records]
 
-        records = parquet_to_records(
-            path=paths["parquet"],
-            column_mapping=COLUMN_MAPPING,
-        )
+            logger.info("Loaded %d records", len(records))
+            logger.info("Load cost: %.2fs", time.perf_counter() - load_start)
 
-        logger.info(f"Loaded {len(records)} records")
-        logger.info(f"Load cost: {time.perf_counter() - load_start:.2f}s")
+            logger.info("Extracting attribute facts...")
+            fact_bundle = extract_facts_from_records(records)
 
-        # =========================
-        # Normalize XLSX
-        # =========================
-        logger.info("Writing normalized XLSX...")
+            write_facts_jsonl(
+                path=paths["attr_facts"],
+                facts=fact_bundle.attribute_facts,
+                mode="overwrite",
+            )
 
-        records_to_xlsx(records, paths["normalized"])
+            logger.info("Extracted %d attribute facts", len(fact_bundle.attribute_facts))
 
-        # =========================
-        # Extract facts
-        # =========================
-        logger.info("Extracting facts...")
+            logger.info("Importing attribute facts into Neo4j...")
+            query = ATTRIBUTE_FACT_SQL.format(path=paths["attr_facts"])
 
-        records = xlsx_to_records(
-            path=paths["normalized"],
-            sheet_name="records",
-        )
+            with driver.session() as session:
+                for i, df_chunk in enumerate(
+                    iter_duckdb_query_df(
+                        query=query,
+                        batch_size=batch_size,
+                        database=str(paths["duckdb_attr"]),
+                    ),
+                    start=1,
+                ):
+                    logger.info("[Attr Chunk %d] shape=%s", i, df_chunk.shape)
 
-        fact_bundle = extract_facts_from_records(records, resolver=resolver)
+                    attribute_dict = attribute_df_to_dict(df_chunk)
 
-        write_facts_jsonl(
-            path=paths["attr_facts"],
-            facts=fact_bundle.attribute_facts,
-            mode="overwrite",
-        )
-
-        write_facts_jsonl(
-            path=paths["entity_facts"],
-            facts=fact_bundle.entity_facts,
-            mode="overwrite",
-        )
-
-        logger.info(
-            f"Extracted {len(fact_bundle.attribute_facts)} attribute facts, "
-            f"{len(fact_bundle.entity_facts)} entity facts"
-        )
-
-        # =========================
-        # Import attribute facts
-        # =========================
-        logger.info("Importing attribute facts into Neo4j...")
-
-        query = ATTRIBUTE_FACT_SQL.format(path=paths["attr_facts"])
-
-        with driver.session() as session:  #
-            for i, df_chunk in enumerate(
-                iter_duckdb_query_df(
-                    query=query,
-                    batch_size=batch_size,
-                    database=str(paths["duckdb_attr"]),
-                ),
-                start=1,
-            ):
-                logger.info(f"[Attr Chunk {i}] shape={df_chunk.shape}")
-
-                attribute_dict = attribute_df_to_dict(df_chunk)
-
-                for label, group in attribute_dict.items():
-                    node_name, _ = get_node_schema(label)
-
-                    cypher = UPSERT_NODE_CYPHER.format(label=node_name)
-
-                    session.run(cypher, rows=group)
+                    for label, group in attribute_dict.items():
+                        node_name, _ = get_node_schema(label)
+                        cypher = UPSERT_NODE_CYPHER.format(label=node_name)
+                        session.run(cypher, rows=group)
 
         logger.info("Pipeline completed successfully.")
 
@@ -162,33 +146,48 @@ def run_output_only_task_labels_pipeline(
 
 
 if __name__ == "__main__":
-
-    resolver = init_entity_resolver(
-        model_name="Qwen3-Embedding-8B",
-        base_collection="entity_aliases",
-        qdrant_url="http://localhost:6333",
-        score_threshold=0.90,
+    parser = argparse.ArgumentParser(
+        description="Create output only task labels KG and import facts into Neo4j."
     )
-
-    xlsx_path = (
-        "/home/temp/dataset/output_only_task_labels/output_only_task_labels.xlsx"
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to shared YAML config. Defaults to configs/tmmkg.yaml.",
     )
-    base_result_dir = "/home/temp/dataset/output_only_task_labels"
-    base_parquet_dir = "/home/temp/dataset/output_only_task_labels/parquet"
+    parser.add_argument(
+        "--limit-records",
+        type=int,
+        default=None,
+        help="Only process the first N records per sheet for testing.",
+    )
+    args = parser.parse_args()
 
-    sheet_names = get_xlsx_sheetnames(xlsx_path)
-    sheet_names = sheet_names[0 : min(1, len(sheet_names))]
+    config = load_config(args.config)
+    setup_logging_from_config(config, "create_OOTL_KG")
 
-    for sheet_name in sheet_names:
+    infra = config.get("infra", {})
+    neo4j = infra.get("neo4j", {})
+    pipeline_config = config.get("pipelines", {}).get("OOTL", {})
 
-        result_dir = sheet_to_result_dir(sheet_name, base_result_dir)
-
-        run_output_only_task_labels_pipeline(
-            uri="bolt://localhost:7687",
-            user="neo4j",
-            password="password",
-            sheet_name=sheet_name,
-            result_dir=result_dir,
-            parquet_dir=base_parquet_dir,
-            resolver=resolver,
-        )
+    run_output_only_task_labels_pipeline(
+        uri=neo4j.get("uri", "bolt://localhost:7687"),
+        user=neo4j.get("user", "neo4j"),
+        password=neo4j.get("password", "password"),
+        xlsx_path=pipeline_config.get(
+            "xlsx_path",
+            "/home/temp/dataset/output_only_task_labels/output_only_task_labels.xlsx",
+        ),
+        base_result_dir=pipeline_config.get(
+            "base_result_dir",
+            "/home/temp/dataset/output_only_task_labels",
+        ),
+        parquet_dir=pipeline_config.get(
+            "base_parquet_dir",
+            "/home/temp/dataset/output_only_task_labels/parquet",
+        ),
+        batch_size=pipeline_config.get("batch_size", 50_000),
+        overwrite_parquet=pipeline_config.get("overwrite_parquet", True),
+        sheet_limit=pipeline_config.get("sheet_limit", 1),
+        limit_records=args.limit_records,
+    )
