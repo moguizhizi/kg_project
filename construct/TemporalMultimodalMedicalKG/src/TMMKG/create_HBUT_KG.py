@@ -1,10 +1,9 @@
-import os
-import logging
+import argparse
 import time
-import sys
-from datetime import datetime
 from pathlib import Path
 import json
+
+import pyarrow.parquet as pq
 
 from TMMKG.domains.home_based_user_training.table_triple_extractor import (
     extract_facts_from_records,
@@ -27,8 +26,9 @@ from TMMKG.utils.json_utils import (
     write_facts_jsonl,
 )
 from TMMKG.utils.path_utils import build_pipeline_paths, sheet_to_result_dir
-from TMMKG.utils.xlsx_utils import get_xlsx_sheetnames
-from dotenv import load_dotenv, find_dotenv
+from TMMKG.utils.config import load_config, project_path
+from TMMKG.utils.logger import get_logger, setup_logging_from_config
+from TMMKG.utils.xlsx_utils import xlsx_to_parquet_dataset
 
 BASE_DIR = Path(__file__).resolve().parent
 ONTOLOGY_MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
@@ -40,12 +40,30 @@ MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
 with open(MAPPINGS_DIR / "prop2label.json", "r") as f:
     PROP_2_LABEL = json.load(f)
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
-_ = load_dotenv(find_dotenv())
+REQUIRED_IMPORT_COLUMNS = {
+    "患者id",
+    "训练日期",
+    "任务id",
+    "任务名称",
+    "任务状态",
+}
+
+
+def should_import_sheet(parquet_path: str, required_columns: set[str]) -> bool:
+    columns = set(pq.read_schema(parquet_path).names)
+    missing_columns = sorted(required_columns - columns)
+
+    if missing_columns:
+        logger.info(
+            "Skip parquet %s, missing required columns: %s",
+            parquet_path,
+            ", ".join(missing_columns),
+        )
+        return False
+
+    return True
 
 
 def run_home_based_user_training_pipeline(
@@ -57,6 +75,8 @@ def run_home_based_user_training_pipeline(
     parquet_dir: str,
     batch_size: int = 50_000,
     resolver: EntityResolver = None,
+    ontology_mappings_dir: str | Path | None = None,
+    entity_registry_dir: str | Path | None = None,
 ):
     """
     Home Based User Training 数据处理 + Neo4j 导入 pipeline
@@ -70,10 +90,21 @@ def run_home_based_user_training_pipeline(
         # =========================
         # Load mappings
         # =========================
-        with open(Path(ONTOLOGY_MAPPINGS_DIR) / "prop2label.json") as f:
+        ontology_mappings_path = (
+            Path(ontology_mappings_dir)
+            if ontology_mappings_dir
+            else ONTOLOGY_MAPPINGS_DIR
+        )
+        entity_registry_path = (
+            Path(entity_registry_dir)
+            if entity_registry_dir
+            else HOME_BASED_USER_TRAINING
+        )
+
+        with open(ontology_mappings_path / "prop2label.json") as f:
             PROP_2_LABEL = json.load(f)
 
-        with open(Path(HOME_BASED_USER_TRAINING) / "column_mapping.json") as f:
+        with open(entity_registry_path / "column_mapping.json") as f:
             COLUMN_MAPPING = json.load(f)
 
         date_fields = [COLUMN_MAPPING["训练日期"]]
@@ -201,31 +232,76 @@ def run_home_based_user_training_pipeline(
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Create home based user training KG and import facts into Neo4j."
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to shared YAML config. Defaults to configs/tmmkg.yaml.",
+    )
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+    setup_logging_from_config(config, "create_HBUT_KG")
+
+    infra = config.get("infra", {})
+    neo4j = infra.get("neo4j", {})
+    qdrant = infra.get("qdrant", {})
+    embedding = config.get("embedding", {})
+    resolver_config = config.get("entity_resolver", {})
+    ontology = config.get("ontology", {})
+    pipeline_config = config.get("pipelines", {}).get("HBUT", {})
 
     resolver = init_entity_resolver(
-        model_name="Qwen3-Embedding-8B",
-        base_collection="entity_aliases",
-        qdrant_url="http://localhost:6333",
-        score_threshold=0.90,
+        model_name=resolver_config.get("model_name", "Qwen3-Embedding-8B"),
+        model_root=embedding.get("model_root"),
+        base_collection=resolver_config.get("base_collection", "entity_aliases"),
+        qdrant_url=qdrant.get("uri", "http://localhost:6333"),
+        score_threshold=resolver_config.get("score_threshold", 0.90),
     )
 
-    xlsx_path = "/home/temp/dataset/home_based_user_training_20260123_v2/home_based_user_training_20260123_v2.xlsx"
-    base_result_dir = "/home/temp/dataset/home_based_user_training_20260123_v2"
-    base_parquet_dir = "/home/temp/dataset/home_based_user_training_20260123_v2/parquet"
+    xlsx_path = pipeline_config.get(
+        "xlsx_path",
+        "/home/temp/dataset/home_based_user_training_20260123_v2/home_based_user_training_20260123_v2.xlsx",
+    )
+    base_result_dir = pipeline_config.get(
+        "base_result_dir",
+        "/home/temp/dataset/home_based_user_training_20260123_v2",
+    )
+    base_parquet_dir = pipeline_config.get(
+        "base_parquet_dir",
+        "/home/temp/dataset/home_based_user_training_20260123_v2/parquet",
+    )
+    batch_size = pipeline_config.get("batch_size", 50_000)
 
-    sheet_names = get_xlsx_sheetnames(xlsx_path)
-    sheet_names = sheet_names[0 : min(19, len(sheet_names))]
+    logger.info("Converting XLSX to Parquet: %s", xlsx_path)
+    parquet_paths = xlsx_to_parquet_dataset(
+        input_path=xlsx_path,
+        output_dir=base_parquet_dir,
+        overwrite=pipeline_config.get("overwrite_parquet", True),
+    )
 
-    for sheet_name in sheet_names:
+    for sheet_name, parquet_path in parquet_paths.items():
+        logger.info("Processing sheet: %s", sheet_name)
+
+        if not should_import_sheet(
+            parquet_path=parquet_path,
+            required_columns=REQUIRED_IMPORT_COLUMNS,
+        ):
+            continue
 
         result_dir = sheet_to_result_dir(sheet_name, base_result_dir)
 
         run_home_based_user_training_pipeline(
-            uri="bolt://localhost:7687",
-            user="neo4j",
-            password="password",
+            uri=neo4j.get("uri", "bolt://localhost:7687"),
+            user=neo4j.get("user", "neo4j"),
+            password=neo4j.get("password", "password"),
             sheet_name=sheet_name,
             result_dir=result_dir,
             parquet_dir=base_parquet_dir,
+            batch_size=batch_size,
             resolver=resolver,
+            ontology_mappings_dir=project_path(ontology.get("mappings_dir")),
         )
