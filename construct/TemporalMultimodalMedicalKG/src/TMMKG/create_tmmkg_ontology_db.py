@@ -20,10 +20,7 @@ from tqdm import tqdm
 import json
 import time
 import argparse
-import logging
-import os
 from pathlib import Path
-from dotenv import load_dotenv, find_dotenv
 from qdrant_client import QdrantClient
 
 from TMMKG.infra.mongo import MongoConnection
@@ -32,6 +29,7 @@ from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
 from TMMKG.services.encoder.registry import get_text_encoder
 from TMMKG.utils.config import load_config, project_path
+from TMMKG.utils.logger import get_logger, setup_logging_from_config
 
 from qdrant_client.http.models import PointStruct
 from tqdm import tqdm
@@ -39,12 +37,7 @@ from tqdm import tqdm
 BASE_DIR = Path(__file__).resolve().parent
 MAPPINGS_DIR = BASE_DIR / "utils" / "ontology_mappings"
 
-_ = load_dotenv(find_dotenv())
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 DEFAULT_EMBEDDING_MODEL_NAME = "Qwen3-Embedding-8B"
 encoder = None
@@ -58,7 +51,6 @@ def init_encoder(
 ):
     global encoder, embed_dim, _encoder_key
 
-    model_root = model_root or os.getenv("LLM_ROOT")
     encoder_key = (model_name, model_root)
 
     if encoder is None or _encoder_key != encoder_key:
@@ -655,13 +647,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     config = load_config(args.config)
+    setup_logging_from_config(config, "create_tmmkg_ontology_db")
+
     infra = config.get("infra", {})
     mongo = infra.get("mongo", {})
     qdrant = infra.get("qdrant", {})
     embedding = config.get("embedding", {})
     ontology = config.get("ontology", {})
     collections = ontology.get("collections", {})
-    model_root_env = embedding.get("model_root_env", "LLM_ROOT")
 
     create_tmmkg_ontology_database(
         mongo_uri=mongo.get("uri", "mongodb://localhost:27017/?directConnection=true"),
@@ -669,7 +662,7 @@ if __name__ == "__main__":
         qdrant_uri=qdrant.get("uri", "http://localhost:6333"),
         mappings_dir=project_path(ontology.get("mappings_dir")),
         embedding_model_name=embedding.get("model_name", DEFAULT_EMBEDDING_MODEL_NAME),
-        embedding_model_root=os.getenv(model_root_env),
+        embedding_model_root=embedding.get("model_root"),
         entity_types_collection=collections.get("entity_types", "entity_types"),
         entity_type_aliases_collection=collections.get(
             "entity_type_aliases", "entity_type_aliases"
