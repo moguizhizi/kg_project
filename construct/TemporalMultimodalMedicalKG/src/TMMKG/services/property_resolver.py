@@ -1,10 +1,8 @@
 # services/property_resolver.py
 
 import logging
-import os
 from typing import List
 from qdrant_client import QdrantClient
-from dotenv import load_dotenv, find_dotenv
 
 from TMMKG.meta_type import PropertyCandidate
 from TMMKG.services.encoder.registry import get_text_encoder
@@ -20,8 +18,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-_ = load_dotenv(find_dotenv())
 
 
 # -----------------------
@@ -83,6 +79,7 @@ class PropertyResolver:
 @lru_cache(maxsize=1)
 def init_property_resolver(
     model_name: str = "Qwen3-Embedding-8B",
+    model_root: str | None = None,
     base_collection: str = "property_aliases",
     qdrant_url: str = "http://localhost:6333",
     score_threshold: float = 0.75,
@@ -104,7 +101,7 @@ def init_property_resolver(
     # encoder 只加载一次
     encoder, embed_dim = get_text_encoder(
         model_name,
-        model_root=os.getenv("LLM_ROOT"),
+        model_root=model_root,
     )
 
     physical_collection = build_collection_name(base_collection, encoder)

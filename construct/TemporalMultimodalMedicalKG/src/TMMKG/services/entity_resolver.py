@@ -5,7 +5,6 @@ from TMMKG.services.encoder.registry import get_text_encoder
 from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
 
-import os
 import logging
 from qdrant_client import QdrantClient
 
@@ -88,6 +87,7 @@ class EntityResolver:
 
 def init_entity_resolver(
     model_name: str = "Qwen3-Embedding-8B",
+    model_root: str | None = None,
     base_collection: str = "entity_aliases",
     qdrant_url: str = "http://localhost:6333",
     score_threshold: float = 0.75,
@@ -106,7 +106,7 @@ def init_entity_resolver(
     # -----------------------
     encoder, embed_dim = get_text_encoder(
         model_name,
-        model_root=os.getenv("LLM_ROOT"),
+        model_root=model_root,
     )
     logger.info(f"TextEncoder initialized (dim={embed_dim})")
 
