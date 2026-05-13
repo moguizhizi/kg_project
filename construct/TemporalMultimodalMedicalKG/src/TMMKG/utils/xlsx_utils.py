@@ -3,6 +3,7 @@
 import pandas as pd
 import zipfile
 from xml.etree import ElementTree
+import posixpath
 from typing import List
 from pathlib import Path
 from typing import Dict
@@ -18,6 +19,12 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+XML_NS = {
+    "main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+    "rel": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    "pkg_rel": "http://schemas.openxmlformats.org/package/2006/relationships",
+}
 
 
 def build_column_mapping(
@@ -154,12 +161,205 @@ def get_xlsx_sheetnames(xlsx_path: str) -> List[str]:
     return sheet_names
 
 
+def read_xlsx_sheet_head_streaming(
+    input_path: str | Path,
+    sheet_name: str,
+    nrows: int,
+) -> pd.DataFrame:
+    """
+    使用 openpyxl read-only 模式读取指定 sheet 的前 nrows 行。
+
+    这个函数用于调试路径，避免 pandas/openpyxl 为了 nrows 仍然解析
+    百万行级 sheet 导致启动很慢。
+    """
+    wb = load_workbook(input_path, read_only=True, data_only=True)
+
+    try:
+        ws = wb[sheet_name]
+        row_iter = ws.iter_rows(values_only=True)
+
+        try:
+            header = next(row_iter)
+        except StopIteration:
+            return pd.DataFrame()
+
+        columns = [str(col).strip() if col is not None else "" for col in header]
+        rows = []
+
+        for _, row in zip(range(nrows), row_iter):
+            rows.append(row)
+
+        return pd.DataFrame(rows, columns=columns, dtype=str)
+
+    finally:
+        wb.close()
+
+
+def get_xlsx_sheet_xml_path(xlsx_path: str | Path, sheet_name: str) -> str:
+    """
+    从 XLSX zip 结构中定位指定 sheet 对应的 worksheet XML 路径。
+    """
+    with zipfile.ZipFile(xlsx_path) as z:
+        workbook_root = ElementTree.fromstring(z.read("xl/workbook.xml"))
+        rels_root = ElementTree.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+
+        sheet_rel_id = None
+        for sheet in workbook_root.findall(".//main:sheet", XML_NS):
+            if sheet.attrib.get("name") == sheet_name:
+                sheet_rel_id = sheet.attrib.get(f"{{{XML_NS['rel']}}}id")
+                break
+
+        if sheet_rel_id is None:
+            raise ValueError(f"Sheet not found: {sheet_name}")
+
+        for rel in rels_root.findall("pkg_rel:Relationship", XML_NS):
+            if rel.attrib.get("Id") == sheet_rel_id:
+                target = rel.attrib["Target"]
+                if target.startswith("/"):
+                    return target.lstrip("/")
+                return posixpath.normpath(posixpath.join("xl", target))
+
+    raise ValueError(f"Worksheet XML not found for sheet: {sheet_name}")
+
+
+def cell_ref_to_index(cell_ref: str) -> int:
+    col = ""
+    for char in cell_ref:
+        if char.isalpha():
+            col += char.upper()
+        else:
+            break
+
+    index = 0
+    for char in col:
+        index = index * 26 + ord(char) - ord("A") + 1
+
+    return index - 1
+
+
+def get_cell_raw_value(cell) -> tuple[str | None, str | None]:
+    cell_type = cell.attrib.get("t")
+
+    if cell_type == "inlineStr":
+        text_parts = [
+            node.text or ""
+            for node in cell.findall(".//main:t", XML_NS)
+        ]
+        return "".join(text_parts), cell_type
+
+    value = cell.find("main:v", XML_NS)
+    return (value.text if value is not None else None), cell_type
+
+
+def load_required_shared_strings(
+    z: zipfile.ZipFile,
+    required_indexes: set[int],
+) -> dict[int, str]:
+    if not required_indexes or "xl/sharedStrings.xml" not in z.namelist():
+        return {}
+
+    shared_strings = {}
+    current_index = 0
+    max_required_index = max(required_indexes)
+
+    for _, elem in ElementTree.iterparse(z.open("xl/sharedStrings.xml"), events=("end",)):
+        if elem.tag.endswith("}si"):
+            if current_index in required_indexes:
+                shared_strings[current_index] = "".join(
+                    node.text or "" for node in elem.findall(".//main:t", XML_NS)
+                )
+
+            elem.clear()
+
+            if current_index >= max_required_index and required_indexes <= shared_strings.keys():
+                break
+
+            current_index += 1
+
+    return shared_strings
+
+
+def read_xlsx_sheet_head_zip_streaming(
+    input_path: str | Path,
+    sheet_name: str,
+    nrows: int,
+) -> pd.DataFrame:
+    """
+    直接从 XLSX zip/xml 中读取指定 sheet 的表头和前 nrows 行。
+
+    该路径用于超大 XLSX 的 dry-run 调试，避免 openpyxl 初始化整张
+    worksheet 带来的等待。
+    """
+    rows = []
+    shared_indexes = set()
+    sheet_xml_path = get_xlsx_sheet_xml_path(input_path, sheet_name)
+
+    with zipfile.ZipFile(input_path) as z:
+        for _, elem in ElementTree.iterparse(z.open(sheet_xml_path), events=("end",)):
+            if not elem.tag.endswith("}row"):
+                continue
+
+            row_values = {}
+            for fallback_col_index, cell in enumerate(elem.findall("main:c", XML_NS)):
+                cell_ref = cell.attrib.get("r", "")
+                value, cell_type = get_cell_raw_value(cell)
+                col_index = (
+                    cell_ref_to_index(cell_ref) if cell_ref else fallback_col_index
+                )
+
+                if cell_type == "s" and value is not None:
+                    shared_index = int(value)
+                    shared_indexes.add(shared_index)
+                    row_values[col_index] = ("shared", shared_index)
+                else:
+                    row_values[col_index] = ("value", value)
+
+            rows.append(row_values)
+            elem.clear()
+
+            if len(rows) >= nrows + 1:
+                break
+
+        shared_strings = load_required_shared_strings(z, shared_indexes)
+
+    if not rows:
+        return pd.DataFrame()
+
+    header_row = rows[0]
+    max_col_index = max(header_row.keys(), default=-1)
+    columns = []
+
+    for col_index in range(max_col_index + 1):
+        value_type, raw_value = header_row.get(col_index, ("value", ""))
+        if value_type == "shared":
+            value = shared_strings.get(raw_value, "")
+        else:
+            value = raw_value or ""
+        columns.append(str(value).strip())
+
+    data_rows = []
+    for row in rows[1:]:
+        values = []
+        for col_index in range(len(columns)):
+            value_type, raw_value = row.get(col_index, ("value", None))
+            if value_type == "shared":
+                values.append(shared_strings.get(raw_value, ""))
+            else:
+                values.append(raw_value)
+        data_rows.append(values)
+
+    return pd.DataFrame(data_rows, columns=columns, dtype=str)
+
+
 def xlsx_to_parquet_dataset(
     input_path: str,
     output_dir: str = None,
     compression="zstd",
     overwrite=False,
     multi_label_keywords: list = None,
+    nrows: int | None = None,
+    required_columns: set[str] | None = None,
+    stop_after_first_valid: bool = False,
 ) -> Dict[str, str]:
     """
     特性：
@@ -169,6 +369,16 @@ def xlsx_to_parquet_dataset(
     防 schema 漂移
     高性能 vectorized
     防止 KG 标签爆炸
+
+    nrows:
+        调试参数。设置后，每个 sheet 通过 zip/xml streaming 只读取前
+        nrows 行，避免完整解析超大 sheet。
+
+    required_columns:
+        设置后，缺少这些列的 sheet 会被跳过。
+
+    stop_after_first_valid:
+        设置后，在成功转换第一个满足 required_columns 的 sheet 后停止。
     """
 
     input_path = Path(input_path)
@@ -205,9 +415,31 @@ def xlsx_to_parquet_dataset(
         logger.info(f"Reading sheet -> {sheet}")
         start = time.perf_counter()
 
-        df = pd.read_excel(input_path, sheet_name=sheet, engine="openpyxl", dtype=str)
+        if nrows is None:
+            df = pd.read_excel(
+                input_path,
+                sheet_name=sheet,
+                engine="openpyxl",
+                dtype=str,
+            )
+        else:
+            df = read_xlsx_sheet_head_zip_streaming(
+                input_path=input_path,
+                sheet_name=sheet,
+                nrows=nrows,
+            )
 
         df = clean_dataframe(df, multi_label_keywords)
+
+        if required_columns:
+            missing_columns = sorted(required_columns - set(df.columns))
+            if missing_columns:
+                logger.info(
+                    "Skip sheet %s, missing required columns: %s",
+                    sheet,
+                    ", ".join(missing_columns),
+                )
+                continue
 
         df.to_parquet(parquet_path, compression=compression, index=False)
 
@@ -218,6 +450,10 @@ def xlsx_to_parquet_dataset(
         )
 
         paths[sheet] = str(parquet_path)
+
+        if stop_after_first_valid:
+            logger.info("Stop after first valid sheet: %s", sheet)
+            break
 
     logger.info(f"ALL DONE in {time.perf_counter()-total_start:.2f}s")
 
