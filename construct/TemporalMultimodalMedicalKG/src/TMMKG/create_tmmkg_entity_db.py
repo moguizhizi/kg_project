@@ -1,18 +1,25 @@
+"""填充 TMMKG 实体注册数据库。
+
+本模块负责加载实体注册映射 JSON 文件，将疾病、症状和未知实体的
+结构化记录写入 MongoDB，并将实体别名文本的 embedding 向量写入
+Qdrant 集合。
+
+如果 Qdrant 部署在内网，并且运行环境设置了 HTTP 代理变量，
+执行脚本前需要把 Qdrant 主机加入 NO_PROXY/no_proxy。
+例如：
+    NO_PROXY=localhost,127.0.0.1,10.30.1.121 \
+    no_proxy=localhost,127.0.0.1,10.30.1.121 \
+    python -m TMMKG.create_tmmkg_entity_db
+"""
+
 import uuid
-from pymongo.mongo_client import MongoClient
-from pymongo.operations import SearchIndexModel
 
 from typing import List
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from tqdm import tqdm
 import json
-import time
 import argparse
-import logging
-import os
 from pathlib import Path
-from dotenv import load_dotenv, find_dotenv
-from qdrant_client import QdrantClient
 
 from TMMKG.infra.mongo import MongoConnection
 from TMMKG.infra.qdrant import QdrantConnection
@@ -20,24 +27,38 @@ from TMMKG.meta_type import DiseaseEntity, SymptomEntity, UnknownEntity
 from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
 from TMMKG.services.encoder.registry import get_text_encoder
+from TMMKG.utils.config import load_config, project_path
+from TMMKG.utils.logger import get_logger, setup_logging_from_config
 
 from qdrant_client.http.models import PointStruct
-from tqdm import tqdm
 
 BASE_DIR = Path(__file__).resolve().parent
 MAPPINGS_DIR = BASE_DIR / "utils" / "entity_registry"
 
-_ = load_dotenv(find_dotenv())
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
-encoder, embed_dim = get_text_encoder(
-    "Qwen3-Embedding-8B",
-    model_root=os.getenv("LLM_ROOT"),
-)
+DEFAULT_EMBEDDING_MODEL_NAME = "Qwen3-Embedding-8B"
+encoder = None
+embed_dim = None
+_encoder_key = None
+
+
+def init_encoder(
+    model_name: str = DEFAULT_EMBEDDING_MODEL_NAME,
+    model_root: str | None = None,
+):
+    global encoder, embed_dim, _encoder_key
+
+    encoder_key = (model_name, model_root)
+
+    if encoder is None or _encoder_key != encoder_key:
+        encoder, embed_dim = get_text_encoder(
+            model_name,
+            model_root=model_root,
+        )
+        _encoder_key = encoder_key
+
+    return encoder, embed_dim
 
 
 def populate_disease_entity(
@@ -235,6 +256,9 @@ def create_tmmkg_entity_database(
     mongo_uri: str = "mongodb://localhost:27017/?directConnection=true",
     database: str = "tmmkg_entity",
     qdrant_uri: str = "http://localhost:6333",
+    mappings_dir: str | Path | None = None,
+    embedding_model_name: str = DEFAULT_EMBEDDING_MODEL_NAME,
+    embedding_model_root: str | None = None,
     disease_collection: str = "disease_entity",
     symptom_collection: str = "symptom_entity",
     unknown_collection: str = "unknown_entity",
@@ -263,24 +287,31 @@ def create_tmmkg_entity_database(
     logger.info("Starting database population process")
     logger.info(f"Using database: {database}")
 
+    init_encoder(
+        model_name=embedding_model_name,
+        model_root=embedding_model_root,
+    )
+
+    mappings_path = Path(mappings_dir) if mappings_dir else MAPPINGS_DIR
+
     # Load mapping files
 
-    with open(os.path.join(MAPPINGS_DIR, "disease2label.json"), "r") as f:
+    with open(mappings_path / "disease2label.json", "r") as f:
         DISEASE_2_LABEL = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "disease2aliases.json"), "r") as f:
+    with open(mappings_path / "disease2aliases.json", "r") as f:
         DISEASE_2_ALIASES = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "symptom2label.json"), "r") as f:
+    with open(mappings_path / "symptom2label.json", "r") as f:
         SYMPTOM_2_LABEL = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "symptom2aliases.json"), "r") as f:
+    with open(mappings_path / "symptom2aliases.json", "r") as f:
         SYMPTOM_2_ALIASES = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "unknown2label.json"), "r") as f:
+    with open(mappings_path / "unknown2label.json", "r") as f:
         UNKNOWN_2_LABEL = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "unknown2aliases.json"), "r") as f:
+    with open(mappings_path / "unknown2aliases.json", "r") as f:
         UNKNOWN_2_ALIASES = json.load(f)
 
     logger.info("Successfully loaded all mapping files")
@@ -369,80 +400,37 @@ def create_tmmkg_entity_database(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Populate MongoDB with Wikidata ontology data"
+        description="Populate MongoDB and Qdrant with TMMKG entity registry data"
     )
 
     parser.add_argument(
-        "--mappings_dir",
+        "--config",
         type=str,
-        default="utils/ontology_mappings/",
-        help="Directory containing ontology mapping files",
-    )
-    parser.add_argument(
-        "--mongo_uri",
-        type=str,
-        default="mongodb://localhost:27017/?directConnection=true",
-        help="MongoDB connection URI",
-    )
-    parser.add_argument(
-        "--database",
-        type=str,
-        default="tmmkg_entity",
-        help="MongoDB database name",
-    )
-    parser.add_argument(
-        "--qdrant_uri",
-        type=str,
-        default="http://localhost:6333",
-        help="Qdrant connection URI",
-    )
-
-    # Collection names
-    parser.add_argument(
-        "--disease_collection",
-        type=str,
-        default="disease_entity",
-        help="Collection name for entity types",
-    )
-    parser.add_argument(
-        "--disease_aliases_collection",
-        type=str,
-        default="disease_aliases_entity",
-        help="Collection name for entity type aliases",
-    )
-    parser.add_argument(
-        "--symptom_collection",
-        type=str,
-        default="symptom_entity",
-        help="Collection name for properties",
-    )
-    parser.add_argument(
-        "--symptom_aliases_collection",
-        type=str,
-        default="symptom_aliases_entity",
-        help="Collection name for property aliases",
-    )
-
-    parser.add_argument(
-        "--unknown_collection",
-        type=str,
-        default="unknown_entity",
-        help="Collection name for properties",
-    )
-    parser.add_argument(
-        "--entity_aliases_collection",
-        type=str,
-        default="entity_aliases",
-        help="Collection name for property aliases",
+        default=None,
+        help="Path to shared YAML config. Defaults to configs/tmmkg.yaml.",
     )
 
     args = parser.parse_args()
+    config = load_config(args.config)
+    setup_logging_from_config(config, "create_tmmkg_entity_db")
+
+    infra = config.get("infra", {})
+    mongo = infra.get("mongo", {})
+    qdrant = infra.get("qdrant", {})
+    embedding = config.get("embedding", {})
+    entity_registry = config.get("entity_registry", {})
+    collections = entity_registry.get("collections", {})
+
     create_tmmkg_entity_database(
-        mongo_uri=args.mongo_uri,
-        database=args.database,
-        qdrant_uri=args.qdrant_uri,
-        disease_collection=args.disease_collection,
-        symptom_collection=args.symptom_collection,
-        unknown_collection=args.unknown_collection,
-        entity_aliases_collection=args.entity_aliases_collection,
+        mongo_uri=mongo.get("uri", "mongodb://localhost:27017/?directConnection=true"),
+        database=entity_registry.get("database", "tmmkg_entity"),
+        qdrant_uri=qdrant.get("uri", "http://localhost:6333"),
+        mappings_dir=project_path(entity_registry.get("mappings_dir")),
+        embedding_model_name=embedding.get("model_name", DEFAULT_EMBEDDING_MODEL_NAME),
+        embedding_model_root=embedding.get("model_root"),
+        disease_collection=collections.get("disease", "disease_entity"),
+        symptom_collection=collections.get("symptom", "symptom_entity"),
+        unknown_collection=collections.get("unknown", "unknown_entity"),
+        entity_aliases_collection=collections.get("entity_aliases", "entity_aliases"),
+        drop_collections=entity_registry.get("drop_collections", True),
     )
