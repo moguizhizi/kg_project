@@ -1,3 +1,16 @@
+"""填充 TMMKG 本体数据库。
+
+本模块负责加载本体映射 JSON 文件，将结构化本体记录写入 MongoDB，
+并将别名文本的 embedding 向量写入 Qdrant 集合。
+
+如果 Qdrant 部署在内网，并且运行环境设置了 HTTP 代理变量，
+执行脚本前需要把 Qdrant 主机加入 NO_PROXY/no_proxy。
+例如：
+    NO_PROXY=localhost,127.0.0.1,10.30.1.121 \
+    no_proxy=localhost,127.0.0.1,10.30.1.121 \
+    python -m TMMKG.create_tmmkg_ontology_db
+"""
+
 from pymongo.mongo_client import MongoClient
 from pymongo.operations import SearchIndexModel
 
@@ -18,6 +31,7 @@ from TMMKG.infra.qdrant import QdrantConnection
 from TMMKG.vectorstores.base import build_collection_name
 from TMMKG.vectorstores.qdrant import QdrantVectorStore
 from TMMKG.services.encoder.registry import get_text_encoder
+from TMMKG.utils.config import load_config, project_path
 
 from qdrant_client.http.models import PointStruct
 from tqdm import tqdm
@@ -32,10 +46,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-encoder, embed_dim = get_text_encoder(
-    "Qwen3-Embedding-8B",
-    model_root=os.getenv("LLM_ROOT"),
-)
+DEFAULT_EMBEDDING_MODEL_NAME = "Qwen3-Embedding-8B"
+encoder = None
+embed_dim = None
+_encoder_key = None
+
+
+def init_encoder(
+    model_name: str = DEFAULT_EMBEDDING_MODEL_NAME,
+    model_root: str | None = None,
+):
+    global encoder, embed_dim, _encoder_key
+
+    model_root = model_root or os.getenv("LLM_ROOT")
+    encoder_key = (model_name, model_root)
+
+    if encoder is None or _encoder_key != encoder_key:
+        encoder, embed_dim = get_text_encoder(
+            model_name,
+            model_root=model_root,
+        )
+        _encoder_key = encoder_key
+
+    return encoder, embed_dim
 
 
 class EntityType(BaseModel):
@@ -457,6 +490,9 @@ def create_tmmkg_ontology_database(
     mongo_uri: str = "mongodb://localhost:27017/?directConnection=true",
     database: str = "tmmkg_ontology",
     qdrant_uri: str = "http://localhost:6333",
+    mappings_dir: str | Path | None = None,
+    embedding_model_name: str = DEFAULT_EMBEDDING_MODEL_NAME,
+    embedding_model_root: str | None = None,
     entity_types_collection: str = "entity_types",
     entity_type_aliases_collection: str = "entity_type_aliases",
     enum_entity_type_collection: str = "enum_entity_type",
@@ -486,32 +522,39 @@ def create_tmmkg_ontology_database(
     logger.info("Starting database population process")
     logger.info(f"Using database: {database}")
 
+    init_encoder(
+        model_name=embedding_model_name,
+        model_root=embedding_model_root,
+    )
+
+    mappings_path = Path(mappings_dir) if mappings_dir else MAPPINGS_DIR
+
     # Load mapping files
-    with open(os.path.join(MAPPINGS_DIR, "subj_constraint2prop.json"), "r") as f:
+    with open(mappings_path / "subj_constraint2prop.json", "r") as f:
         subj2prop_constraints = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "obj_constraint2prop.json"), "r") as f:
+    with open(mappings_path / "obj_constraint2prop.json", "r") as f:
         obj2prop_constraints = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "entity_type2label.json"), "r") as f:
+    with open(mappings_path / "entity_type2label.json", "r") as f:
         ENTITY_TYPE_2_LABEL = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "entity_type2hierarchy.json"), "r") as f:
+    with open(mappings_path / "entity_type2hierarchy.json", "r") as f:
         ENTITY_TYPE_2_HIERARCHY = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "entity_type2aliases.json"), "r") as f:
+    with open(mappings_path / "entity_type2aliases.json", "r") as f:
         ENTITY_TYPE_2_ALIASES = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "enum_entity_type.json"), "r") as f:
+    with open(mappings_path / "enum_entity_type.json", "r") as f:
         ENUM_ENTITY_TYPE_VALUES = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "prop2constraints.json"), "r") as f:
+    with open(mappings_path / "prop2constraints.json", "r") as f:
         PROP_2_CONSTRAINT = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "prop2label.json"), "r") as f:
+    with open(mappings_path / "prop2label.json", "r") as f:
         PROP_2_LABEL = json.load(f)
 
-    with open(os.path.join(MAPPINGS_DIR, "prop2aliases.json"), "r") as f:
+    with open(mappings_path / "prop2aliases.json", "r") as f:
         PROP_2_ALIASES = json.load(f)
 
     logger.info("Successfully loaded all mapping files")
@@ -604,84 +647,39 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--mappings_dir",
+        "--config",
         type=str,
-        default="utils/ontology_mappings/",
-        help="Directory containing ontology mapping files",
-    )
-    parser.add_argument(
-        "--mongo_uri",
-        type=str,
-        default="mongodb://localhost:27017/?directConnection=true",
-        help="MongoDB connection URI",
-    )
-    parser.add_argument(
-        "--database",
-        type=str,
-        default="tmmkg_ontology",
-        help="MongoDB database name",
-    )
-    parser.add_argument(
-        "--qdrant_uri",
-        type=str,
-        default="http://localhost:6333",
-        help="Qdrant connection URI",
-    )
-
-    # Collection names
-    parser.add_argument(
-        "--entity_types_collection",
-        type=str,
-        default="entity_types",
-        help="Collection name for entity types",
-    )
-    parser.add_argument(
-        "--enum_entity_type_collection",
-        type=str,
-        default="enum_entity_type",
-        help="Collection name for enum entity type definitions (enum values and constraints)",
-    )
-    parser.add_argument(
-        "--entity_type_aliases_collection",
-        type=str,
-        default="entity_type_aliases",
-        help="Collection name for entity type aliases",
-    )
-    parser.add_argument(
-        "--properties_collection",
-        type=str,
-        default="properties",
-        help="Collection name for properties",
-    )
-    parser.add_argument(
-        "--property_aliases_collection",
-        type=str,
-        default="property_aliases",
-        help="Collection name for property aliases",
-    )
-
-    # Index names
-    parser.add_argument(
-        "--entity_types_index",
-        type=str,
-        default="entity_type_aliases",
-        help="Index name for entity types",
-    )
-    parser.add_argument(
-        "--property_aliases_index",
-        type=str,
-        default="property_aliases",
-        help="Index name for property aliases",
+        default=None,
+        help="Path to shared YAML config. Defaults to configs/tmmkg.yaml.",
     )
 
     args = parser.parse_args()
+    config = load_config(args.config)
+    infra = config.get("infra", {})
+    mongo = infra.get("mongo", {})
+    qdrant = infra.get("qdrant", {})
+    embedding = config.get("embedding", {})
+    ontology = config.get("ontology", {})
+    collections = ontology.get("collections", {})
+    model_root_env = embedding.get("model_root_env", "LLM_ROOT")
+
     create_tmmkg_ontology_database(
-        mongo_uri=args.mongo_uri,
-        database=args.database,
-        qdrant_uri=args.qdrant_uri,
-        entity_types_collection=args.entity_types_collection,
-        entity_type_aliases_collection=args.entity_type_aliases_collection,
-        enum_entity_type_collection=args.enum_entity_type_collection,
-        properties_collection=args.properties_collection,
-        property_aliases_collection=args.property_aliases_collection,
+        mongo_uri=mongo.get("uri", "mongodb://localhost:27017/?directConnection=true"),
+        database=ontology.get("database", "tmmkg_ontology"),
+        qdrant_uri=qdrant.get("uri", "http://localhost:6333"),
+        mappings_dir=project_path(ontology.get("mappings_dir")),
+        embedding_model_name=embedding.get("model_name", DEFAULT_EMBEDDING_MODEL_NAME),
+        embedding_model_root=os.getenv(model_root_env),
+        entity_types_collection=collections.get("entity_types", "entity_types"),
+        entity_type_aliases_collection=collections.get(
+            "entity_type_aliases", "entity_type_aliases"
+        ),
+        enum_entity_type_collection=collections.get(
+            "enum_entity_type", "enum_entity_type"
+        ),
+        properties_collection=collections.get("properties", "properties"),
+        property_aliases_collection=collections.get(
+            "property_aliases", "property_aliases"
+        ),
+        drop_collections=ontology.get("drop_collections", True),
     )
