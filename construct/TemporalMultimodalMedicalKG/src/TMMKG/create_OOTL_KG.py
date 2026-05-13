@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 import json
 
+import pyarrow.parquet as pq
 
 from TMMKG.domains.output_only_task_labels.table_triple_extractor import (
     extract_facts_from_records,
@@ -48,6 +49,29 @@ HOME_BASED_USER_TRAINING = (
 
 logger = get_logger(__name__)
 
+REQUIRED_IMPORT_COLUMNS = {
+    "CMS-ID",
+    "训练名称",
+    "认知加工深度",
+    "认知负荷水平",
+    "任务类型",
+}
+
+
+def should_import_sheet(parquet_path: str, required_columns: set[str]) -> bool:
+    columns = set(pq.read_schema(parquet_path).names)
+    missing_columns = sorted(required_columns - columns)
+
+    if missing_columns:
+        logger.info(
+            "Skip parquet %s, missing required columns: %s",
+            parquet_path,
+            ", ".join(missing_columns),
+        )
+        return False
+
+    return True
+
 
 def run_output_only_task_labels_pipeline(
     uri: str,
@@ -58,7 +82,6 @@ def run_output_only_task_labels_pipeline(
     parquet_dir: str,
     batch_size: int = 50_000,
     overwrite_parquet: bool = False,
-    sheet_limit: int | None = None,
     limit_records: int | None = None,
     entity_registry_dir: str | Path | None = None,
 ):
@@ -81,14 +104,18 @@ def run_output_only_task_labels_pipeline(
         overwrite=overwrite_parquet,
     )
 
-    if sheet_limit is not None:
-        parquet_paths = dict(list(parquet_paths.items())[:sheet_limit])
-
     driver = create_neo4j_driver(uri=uri, user=user, password=password)
 
     try:
         for sheet_name, parquet_path in parquet_paths.items():
             logger.info("Processing sheet: %s", sheet_name)
+
+            if not should_import_sheet(
+                parquet_path=parquet_path,
+                required_columns=REQUIRED_IMPORT_COLUMNS,
+            ):
+                continue
+
             result_dir = sheet_to_result_dir(sheet_name, base_result_dir)
             paths = build_pipeline_paths(result_dir, parquet_dir, sheet_name)
 
@@ -188,6 +215,5 @@ if __name__ == "__main__":
         ),
         batch_size=pipeline_config.get("batch_size", 50_000),
         overwrite_parquet=pipeline_config.get("overwrite_parquet", True),
-        sheet_limit=pipeline_config.get("sheet_limit", 1),
         limit_records=args.limit_records,
     )
