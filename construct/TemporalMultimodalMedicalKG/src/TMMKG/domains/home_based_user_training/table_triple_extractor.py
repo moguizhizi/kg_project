@@ -176,7 +176,7 @@ def extract_entity_facts(
     # ----------------- 疾病映射 -----------------
     instance_to_disease = []
     diseases_str = record.get(COLUMN_MAPPING["疾病"])
-    if diseases_str:
+    if diseases_str and resolver is not None:
         diseases_list = [item.strip() for item in diseases_str.split(",")]
 
         for dis in diseases_list:
