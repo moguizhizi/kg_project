@@ -16,12 +16,10 @@ normalized records so the import can be inspected before a full run.
 
 import argparse
 import json
-import logging
 import time
 from pathlib import Path
 
 import pyarrow.parquet as pq
-from dotenv import find_dotenv, load_dotenv
 
 from TMMKG.domains.level_2_brain_ability_data.table_triple_extractor import (
     extract_facts_from_records,
@@ -35,6 +33,8 @@ from TMMKG.utils.json_utils import (
     iter_duckdb_query_df,
     write_facts_jsonl,
 )
+from TMMKG.utils.config import load_config
+from TMMKG.utils.logger import get_logger, setup_logging_from_config
 from TMMKG.utils.path_utils import sheet_to_result_dir
 from TMMKG.utils.xlsx_utils import xlsx_to_parquet_dataset
 
@@ -44,13 +44,7 @@ ENTITY_REGISTRY_DIR = (
     BASE_DIR / "utils" / "entity_registry" / "level_2_brain_ability_data"
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
-
-_ = load_dotenv(find_dotenv())
+logger = get_logger(__name__)
 
 with open(ONTOLOGY_MAPPINGS_DIR / "prop2label.json", "r") as f:
     PROP_2_LABEL = json.load(f)
@@ -206,6 +200,12 @@ if __name__ == "__main__":
         description="Create level 2 brain ability KG attribute facts and import them into Neo4j."
     )
     parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to shared YAML config. Defaults to configs/tmmkg.yaml.",
+    )
+    parser.add_argument(
         "--limit-records",
         type=int,
         default=None,
@@ -213,13 +213,30 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    config = load_config(args.config)
+    setup_logging_from_config(config, "create_L2BA_KG")
+
+    infra = config.get("infra", {})
+    neo4j = infra.get("neo4j", {})
+    pipeline_config = config.get("pipelines", {}).get("L2BA", {})
+
     run_level_2_brain_ability_pipeline(
-        uri="bolt://localhost:7687",
-        user="neo4j",
-        password="password",
-        xlsx_path="/home/temp/dataset/level_2_brain_ability_data/level_2_brain_ability_data_20260509.xlsx",
-        result_dir="/home/temp/dataset/level_2_brain_ability_data",
-        parquet_dir="/home/temp/dataset/level_2_brain_ability_data/parquet",
-        overwrite_parquet=True,
+        uri=neo4j.get("uri", "bolt://localhost:7687"),
+        user=neo4j.get("user", "neo4j"),
+        password=neo4j.get("password", "password"),
+        xlsx_path=pipeline_config.get(
+            "xlsx_path",
+            "/home/temp/dataset/level_2_brain_ability_data/level_2_brain_ability_data_20260509.xlsx",
+        ),
+        result_dir=pipeline_config.get(
+            "result_dir",
+            "/home/temp/dataset/level_2_brain_ability_data",
+        ),
+        parquet_dir=pipeline_config.get(
+            "parquet_dir",
+            "/home/temp/dataset/level_2_brain_ability_data/parquet",
+        ),
+        batch_size=pipeline_config.get("batch_size", 50_000),
+        overwrite_parquet=pipeline_config.get("overwrite_parquet", True),
         limit_records=args.limit_records,
     )
