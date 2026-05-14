@@ -175,7 +175,7 @@ def run_output_only_task_labels_pipeline(
         driver.close()
 
 
-if __name__ == "__main__":
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Create output only task labels KG and import facts into Neo4j."
     )
@@ -220,3 +220,11 @@ if __name__ == "__main__":
         overwrite_parquet=pipeline_config.get("overwrite_parquet", True),
         limit_records=args.limit_records,
     )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        logger.exception("Pipeline failed")
+        raise

@@ -198,7 +198,7 @@ def run_level_2_brain_ability_pipeline(
         driver.close()
 
 
-if __name__ == "__main__":
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Create level 2 brain ability KG attribute facts and import them into Neo4j."
     )
@@ -243,3 +243,11 @@ if __name__ == "__main__":
         overwrite_parquet=pipeline_config.get("overwrite_parquet", True),
         limit_records=args.limit_records,
     )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        logger.exception("Pipeline failed")
+        raise

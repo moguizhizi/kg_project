@@ -310,7 +310,7 @@ def run_home_based_user_training_pipeline(
             driver.close()
 
 
-if __name__ == "__main__":
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Create home based user training KG and import facts into Neo4j."
     )
@@ -383,3 +383,11 @@ if __name__ == "__main__":
         resolver=resolver,
         ontology_mappings_dir=project_path(ontology.get("mappings_dir")),
     )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        logger.exception("Pipeline failed")
+        raise
