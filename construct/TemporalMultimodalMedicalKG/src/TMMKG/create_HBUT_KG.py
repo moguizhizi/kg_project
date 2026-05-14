@@ -35,7 +35,7 @@ from TMMKG.domains.home_based_user_training.table_triple_extractor import (
     extract_facts_from_records,
 )
 from TMMKG.extractors.parquet_loader import parquet_to_records
-from TMMKG.graph.neo4j_db import get_node_schema
+from TMMKG.graph.neo4j_db import ensure_unique_constraints, get_node_schema
 from TMMKG.infra.neo4j_db import create_neo4j_driver
 from TMMKG.services.entity_resolver import EntityResolver, init_entity_resolver
 from TMMKG.sql_templates import (
@@ -226,6 +226,10 @@ def run_home_based_user_training_pipeline(
     )
 
     try:
+        if driver is not None:
+            logger.info("Ensuring Neo4j unique constraints...")
+            ensure_unique_constraints(driver)
+
         for sheet_name, parquet_path in parquet_paths.items():
             logger.info("Processing sheet: %s", sheet_name)
 

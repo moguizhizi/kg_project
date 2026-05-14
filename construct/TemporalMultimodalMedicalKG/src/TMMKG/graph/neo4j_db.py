@@ -43,6 +43,18 @@ def build_unique_constraint_cypher(entity_type: str) -> str:
     return CREATE_CONSTRAINT_CYPHER.format(label=label, pk=pk)
 
 
+def ensure_unique_constraints(driver) -> None:
+    """
+    为所有已登记实体类型创建 Neo4j 唯一约束。
+
+    约束创建使用 IF NOT EXISTS，重复调用是安全的。
+    """
+    with driver.session() as session:
+        for entity_type in ENTITY_TYPE_MAP:
+            cypher = build_unique_constraint_cypher(entity_type)
+            session.run(cypher)
+
+
 def build_merge_node_cypher(
     entity_type: str,
     entity_id,

@@ -25,7 +25,7 @@ from TMMKG.domains.level_2_brain_ability_data.table_triple_extractor import (
     extract_facts_from_records,
 )
 from TMMKG.extractors.parquet_loader import parquet_to_records
-from TMMKG.graph.neo4j_db import get_node_schema
+from TMMKG.graph.neo4j_db import ensure_unique_constraints, get_node_schema
 from TMMKG.infra.neo4j_db import create_neo4j_driver
 from TMMKG.sql_templates import ATTRIBUTE_FACT_SQL, UPSERT_NODE_CYPHER
 from TMMKG.utils.json_utils import (
@@ -140,6 +140,9 @@ def run_level_2_brain_ability_pipeline(
     driver = create_neo4j_driver(uri=uri, user=user, password=password)
 
     try:
+        logger.info("Ensuring Neo4j unique constraints...")
+        ensure_unique_constraints(driver)
+
         for sheet_name, parquet_path in parquet_paths.items():
             logger.info("Processing sheet: %s", sheet_name)
 
