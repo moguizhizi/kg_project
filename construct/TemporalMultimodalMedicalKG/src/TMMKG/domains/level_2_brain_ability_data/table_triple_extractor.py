@@ -31,7 +31,7 @@ with open(ENTITY_REGISTRY_DIR / "column_mapping.json", "r") as f:
     COLUMN_MAPPING = json.load(f)
 
 
-LEVEL_2_FIELDS = [
+L2BA_ATTRIBUTE_FIELDS = [
     "二级_心算",
     "二级_听理解",
     "二级_书写能力",
@@ -67,6 +67,7 @@ LEVEL_2_FIELDS = [
     "二级_归纳与推理",
     "二级_表象与想象",
     "二级_工作记忆",
+    "总分",
 ]
 
 def _is_empty(value: Any) -> bool:
@@ -136,11 +137,19 @@ def _build_instance_set(record: Dict[str, Any]) -> Optional[tuple[str, str]]:
     return instance_set_id, instance_set_name
 
 
-def extract_facts_from_records(records: List[Dict[str, Any]]) -> FactBundle:
+def extract_facts_from_records(
+    records: List[Dict[str, Any]],
+    skip_fields: Optional[Set[str]] = None,
+    include_fields: Optional[Set[str]] = None,
+) -> FactBundle:
     attribute_facts: List[TypedFact] = []
 
     for record in records:
-        attrs = extract_attribute_facts(record)
+        attrs = extract_attribute_facts(
+            record,
+            skip_fields=skip_fields,
+            include_fields=include_fields,
+        )
         attribute_facts.extend(attrs)
 
     return FactBundle(
@@ -153,6 +162,7 @@ def extract_facts_from_records(records: List[Dict[str, Any]]) -> FactBundle:
 def extract_attribute_facts(
     record: Dict[str, Any],
     skip_fields: Optional[Set[str]] = None,
+    include_fields: Optional[Set[str]] = None,
 ) -> List[TypedFact]:
     facts: List[TypedFact] = []
     skip_fields = skip_fields or set()
@@ -163,9 +173,11 @@ def extract_attribute_facts(
 
     instance_set_id, instance_set_name = instance_set
 
-    for col_name in LEVEL_2_FIELDS:
+    for col_name in L2BA_ATTRIBUTE_FIELDS:
         prop = COLUMN_MAPPING[col_name]
         if prop in skip_fields:
+            continue
+        if include_fields is not None and prop not in include_fields:
             continue
 
         value = record.get(prop)

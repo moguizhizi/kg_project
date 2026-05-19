@@ -10,6 +10,12 @@ Usage:
     小样本调试：
         PYTHONPATH=src python src/TMMKG/create_L2BA_KG.py --limit-records 10
 
+    增量补指定属性：
+        在 configs/tmmkg.yaml 的 pipelines.L2BA.include_fields 中配置。
+
+    跳过指定属性：
+        在 configs/tmmkg.yaml 的 pipelines.L2BA.skip_fields 中配置。
+
 --limit-records 是运行时调试参数，不改变主流程，只限制每个 sheet
 处理的前 N 条记录，便于在完整导入前检查抽取和入库结果。
 """
@@ -82,6 +88,29 @@ def should_import_sheet(parquet_path: str, required_columns: set[str]) -> bool:
     return True
 
 
+def resolve_field_filter(
+    fields: list[str] | None,
+    column_mapping: dict,
+) -> set[str] | None:
+    if not fields:
+        return None
+
+    props = set()
+    valid_props = set(column_mapping.values())
+
+    for field in fields:
+        if field in column_mapping:
+            props.add(column_mapping[field])
+        elif field in valid_props:
+            props.add(field)
+        else:
+            raise ValueError(
+                f"Unknown field filter: {field}. Use a source column name or AU property id."
+            )
+
+    return props
+
+
 def import_attribute_facts_to_neo4j(
     driver,
     attr_facts_path: Path,
@@ -119,6 +148,8 @@ def run_level_2_brain_ability_pipeline(
     batch_size: int = 50_000,
     overwrite_parquet: bool = False,
     limit_records: int | None = None,
+    include_fields: list[str] | None = None,
+    skip_fields: list[str] | None = None,
 ) -> None:
     """
     Level 2 brain ability data pipeline:
@@ -129,6 +160,19 @@ def run_level_2_brain_ability_pipeline(
         column_mapping = json.load(f)
 
     date_fields = [column_mapping["训练日期"]]
+    include_props = resolve_field_filter(include_fields, column_mapping)
+    skip_props = resolve_field_filter(skip_fields, column_mapping) or set()
+
+    if include_props:
+        logger.info(
+            "Incremental attribute import enabled, include properties: %s",
+            ", ".join(sorted(include_props)),
+        )
+    if skip_props:
+        logger.info(
+            "Attribute skip filter enabled, skip properties: %s",
+            ", ".join(sorted(skip_props)),
+        )
 
     logger.info("Converting XLSX to Parquet: %s", xlsx_path)
     parquet_paths = xlsx_to_parquet_dataset(
@@ -170,7 +214,11 @@ def run_level_2_brain_ability_pipeline(
             logger.info("Load cost: %.2fs", time.perf_counter() - load_start)
 
             logger.info("Extracting attribute facts...")
-            fact_bundle = extract_facts_from_records(records)
+            fact_bundle = extract_facts_from_records(
+                records,
+                skip_fields=skip_props,
+                include_fields=include_props,
+            )
 
             write_facts_jsonl(
                 path=paths["attr_facts"],
@@ -242,6 +290,8 @@ def main() -> None:
         batch_size=pipeline_config.get("batch_size", 50_000),
         overwrite_parquet=pipeline_config.get("overwrite_parquet", True),
         limit_records=args.limit_records,
+        include_fields=pipeline_config.get("include_fields"),
+        skip_fields=pipeline_config.get("skip_fields"),
     )
 
 
