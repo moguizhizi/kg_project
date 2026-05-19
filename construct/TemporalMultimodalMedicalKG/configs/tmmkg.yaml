@@ -68,11 +68,14 @@ pipelines:
     overwrite_parquet: true
 
   L2BA:
-    xlsx_path: "/home/temp/dataset/level_2_brain_ability_data/level_2_brain_ability_data_20260509.xlsx"
+    xlsx_path: "/home/temp/dataset/level_2_brain_ability_data/level_2_brain_ability_data_20260519.xlsx"
     result_dir: "/home/temp/dataset/level_2_brain_ability_data"
     parquet_dir: "/home/temp/dataset/level_2_brain_ability_data/parquet"
     batch_size: 50000
     overwrite_parquet: true
+    include_fields:
+      - 总分
+    skip_fields: []
 
   OOTL:
     xlsx_path: "/home/temp/dataset/output_only_task_labels/output_only_task_labels.xlsx"
