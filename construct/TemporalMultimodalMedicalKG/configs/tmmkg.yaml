@@ -24,6 +24,8 @@ logging:
       file: "create_tmmkg_ontology_db.log"
     create_tmmkg_entity_db:
       file: "create_tmmkg_entity_db.log"
+    create_tmmkg_entity_graph:
+      file: "create_tmmkg_entity_graph.log"
     create_HBUT_KG:
       file: "create_HBUT_KG.log"
     create_L2BA_KG:
