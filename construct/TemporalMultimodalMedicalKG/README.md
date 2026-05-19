@@ -74,6 +74,14 @@ PYTHONPATH=src python -m TMMKG.create_tmmkg_ontology_db
 PYTHONPATH=src python -m TMMKG.create_tmmkg_entity_db
 ```
 
+将实体注册库写入 Neo4j，补齐 Disease、Symptom、Unknown 的 `name` 和 `别名`：
+
+```bash
+NO_PROXY=localhost,127.0.0.1,10.30.1.121 \
+no_proxy=localhost,127.0.0.1,10.30.1.121 \
+PYTHONPATH=src python -m TMMKG.create_tmmkg_entity_graph
+```
+
 如果代理会影响 Qdrant 或本地服务访问：
 
 ```bash
@@ -218,6 +226,7 @@ ORDER BY neo4j_node_id;
 ```text
 logs/create_tmmkg_ontology_db.log
 logs/create_tmmkg_entity_db.log
+logs/create_tmmkg_entity_graph.log
 logs/create_L2BA_KG.log
 logs/create_OOTL_KG.log
 logs/create_HBUT_KG.log
@@ -294,6 +303,12 @@ tail -n 100 logs/create_L2BA_KG.log
 
 ### 疾病节点没有 name
 
-当前 HBUT 的疾病关系导入主要通过 entity facts 创建关系。若疾病节点是关系尾节点自动 `MERGE` 出来的，默认只保证 `id` 存在，不一定写入 `name`。
+HBUT 的疾病关系导入主要通过 entity facts 创建关系。若疾病节点是关系尾节点自动 `MERGE` 出来的，默认只保证 `id` 存在，不一定写入 `name`。
 
-如果需要疾病节点带标准名称，需要在疾病实体初始化阶段提前写入，或扩展 entity facts 结构携带 `tail_name` 并在关系导入时写入 tail 节点属性。
+需要先执行：
+
+```bash
+PYTHONPATH=src python -m TMMKG.create_tmmkg_entity_graph
+```
+
+该脚本会将 Disease、Symptom、Unknown 的 `id`、`name` 和 `别名` 写入 Neo4j。
