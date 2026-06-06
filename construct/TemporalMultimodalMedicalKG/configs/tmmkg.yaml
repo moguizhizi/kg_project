@@ -59,6 +59,23 @@ entity_resolver:
   base_collection: "entity_aliases"
   score_threshold: 0.90
 
+ingestion:
+  scan_dir: "/data/tmmkg/inbox"
+  archive_dir: "/data/tmmkg/archive"
+  job_retention_days: 30
+  filename_domain_patterns:
+    HBUT:
+      - "hbut"
+      - "home_based_user_training"
+      - "home_user_training"
+    L2BA:
+      - "l2ba"
+      - "level_2_brain_ability"
+      - "brain_ability"
+    OOTL:
+      - "ootl"
+      - "output_only_task_labels"
+
 pipelines:
   HBUT:
     xlsx_path: "/home/temp/dataset/home_user_training_data_through_202604_20260509/home_user_training_data_through_202604_20260509.xlsx"
